@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/local/db_helper.dart';
+
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
 
@@ -11,6 +13,7 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final PageController _pageController = PageController();
   final _formKey = GlobalKey<FormState>();
+  DBHelper? dbref;
 
   int _currentStep = 0;
   final int _totalSteps = 4;
@@ -33,7 +36,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool _privacyAgreed = false;
 
   // Options for dropdowns and selections
-  final List<String> _genderOptions = ['Male', 'Female', 'Fuck of LGTV'];
+  final List<String> _genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
   final List<String> _bloodTypeOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
   final List<String> _commonAllergies = [
     'Peanuts', 'Tree nuts', 'Shellfish', 'Fish', 'Eggs', 'Milk', 'Soy', 'Wheat',
@@ -47,6 +50,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize database helper
+    dbref = DBHelper.getInstance;
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     _nameController.dispose();
@@ -58,7 +68,34 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     super.dispose();
   }
 
+  bool _validateCurrentStep() {
+    switch (_currentStep) {
+      case 0: // Personal Info
+        return _nameController.text.isNotEmpty &&
+            _ageController.text.isNotEmpty &&
+            _selectedGender.isNotEmpty &&
+            _heightController.text.isNotEmpty &&
+            _weightController.text.isNotEmpty &&
+            _selectedBloodType.isNotEmpty;
+      case 1: // Medical Info (optional, so always valid)
+        return true;
+      case 2: // Emergency Contact
+        return _emergencyNameController.text.isNotEmpty &&
+            _emergencyPhoneController.text.isNotEmpty &&
+            _emergencyPhoneController.text.length == 10;
+      case 3: // Privacy
+        return _privacyAgreed;
+      default:
+        return true;
+    }
+  }
+
   void _nextStep() {
+    if (!_validateCurrentStep()) {
+      _showValidationError();
+      return;
+    }
+
     if (_currentStep < _totalSteps - 1) {
       setState(() {
         _currentStep++;
@@ -82,34 +119,90 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
   }
 
-  Future<void> _completeSetup() async {
+  void _showValidationError() {
+    String message = '';
+    switch (_currentStep) {
+      case 0:
+        message = 'Please fill in all personal information fields';
+        break;
+      case 2:
+        message = 'Please provide valid emergency contact information';
+        break;
+      case 3:
+        message = 'Please agree to the privacy policy to continue';
+        break;
+    }
 
-    final navigator = Navigator.of(context);
-    if (!_formKey.currentState!.validate() || !_privacyAgreed) {
-      if (!_privacyAgreed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please agree to the privacy policy'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _completeSetup() async {
+    if (!_validateCurrentStep()) {
+      _showValidationError();
       return;
     }
+
+    final navigator = Navigator.of(context);
 
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call to save profile
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      if (dbref != null) {
+        // Save basic user information
+        var uname = _nameController.text;
+        int uage = int.tryParse(_ageController.text) ?? 0;
+        var gender = _selectedGender;
+        var uheight = int.tryParse(_heightController.text) ?? 0;
+        var uweight = int.tryParse(_weightController.text) ?? 0;
+        var ublood = _selectedBloodType;
 
-    setState(() {
-      _isLoading = false;
-    });
+        bool userAdded = await dbref!.addUser(
+          name: uname,
+          age: uage,
+          gender: gender,
+          height: uheight,
+          weight: uweight,
+          blood: ublood,
+        );
 
-    // Navigate to dashboard
-    navigator.pushReplacementNamed('/userdashboard');
+        if (userAdded) {
+          // TODO: Save additional information (allergies, conditions, emergency contact)
+          // This would require additional database methods
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Profile setup completed successfully!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navigate to dashboard
+          navigator.pushReplacementNamed('/userdashboard');
+        } else {
+          throw Exception('Failed to save user data');
+        }
+      } else {
+        throw Exception('Database not initialized');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error saving profile: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -236,7 +329,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               return null;
             },
             decoration: InputDecoration(
-              labelText: 'Full Name',
+              labelText: 'Full Name *',
               prefixIcon: const Icon(Icons.person),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -276,7 +369,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     return null;
                   },
                   decoration: InputDecoration(
-                    labelText: 'Age',
+                    labelText: 'Age *',
                     prefixIcon: const Icon(Icons.cake),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -303,7 +396,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     return null;
                   },
                   decoration: InputDecoration(
-                    labelText: 'Gender',
+                    labelText: 'Gender *',
                     prefixIcon: const Icon(Icons.wc),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -342,8 +435,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 child: TextFormField(
                   controller: _heightController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Height is required';
+                    }
+                    final height = int.tryParse(value);
+                    if (height == null || height < 50 || height > 300) {
+                      return 'Enter valid height (50-300 cm)';
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
-                    labelText: 'Height (cm)',
+                    labelText: 'Height (cm) *',
                     prefixIcon: const Icon(Icons.height),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -364,8 +470,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 child: TextFormField(
                   controller: _weightController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Weight is required';
+                    }
+                    final weight = int.tryParse(value);
+                    if (weight == null || weight < 20 || weight > 500) {
+                      return 'Enter valid weight (20-500 kg)';
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
-                    labelText: 'Weight (kg)',
+                    labelText: 'Weight (kg) *',
                     prefixIcon: const Icon(Icons.monitor_weight),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -389,8 +508,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           // Blood type
           DropdownButtonFormField<String>(
             value: _selectedBloodType.isEmpty ? null : _selectedBloodType,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Blood type is required';
+              }
+              return null;
+            },
             decoration: InputDecoration(
-              labelText: 'Blood Type',
+              labelText: 'Blood Type *',
               prefixIcon: const Icon(Icons.bloodtype),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -481,7 +606,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   });
                 },
                 selectedColor: const Color(0xFF2563EB),
-                checkmarkColor: const Color(0xFF2563EB),
+                checkmarkColor: Colors.white,
               );
             }).toList(),
           ),
@@ -524,7 +649,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   });
                 },
                 selectedColor: const Color(0xFF2563EB),
-                checkmarkColor: const Color(0xFF2563EB),
+                checkmarkColor: Colors.white,
               );
             }).toList(),
           ),
@@ -604,7 +729,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               return null;
             },
             decoration: InputDecoration(
-              labelText: 'Contact Name',
+              labelText: 'Contact Name *',
               prefixIcon: const Icon(Icons.person),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -640,7 +765,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               return null;
             },
             decoration: InputDecoration(
-              labelText: 'Phone Number',
+              labelText: 'Phone Number *',
               prefixText: '+91 ',
               prefixIcon: const Icon(Icons.phone),
               border: OutlineInputBorder(
@@ -740,7 +865,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     ),
                     const Expanded(
                       child: Text(
-                        'I agree to the Terms of Service and Privacy Policy',
+                        'I agree to the Terms of Service and Privacy Policy *',
                         style: TextStyle(
                           fontSize: 14,
                           color: Color(0xFF374151),
@@ -789,9 +914,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             child: ElevatedButton(
               onPressed: _isLoading
                   ? null
-                  : _currentStep == _totalSteps - 1
-                  ? _completeSetup
-                  : _nextStep,
+                  : () {
+                if (_currentStep == _totalSteps - 1) {
+                  _completeSetup();
+                } else {
+                  _nextStep();
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,

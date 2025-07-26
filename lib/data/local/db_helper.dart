@@ -1,76 +1,84 @@
-import 'dart:ffi';
 import 'dart:io';
-
-import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-class DBHelper
-{
+class DBHelper {
   DBHelper._();
 
-  /*Creating Single instance of the class,
-  so only one object is created throughout the class*/
-
+  // Singleton instance
   static final DBHelper getInstance = DBHelper._();
 
-  //Table
-  static final String TABLE_NAME = "users";
-  static final String COL_ID ="col1";
-  static final String COL_NAME ="col2";
-  static final String COL_AGE ="col3";
-  static final String COL_GENDER ="col4";
+  // Table and column names
+  static const String TABLE_NAME = "users";
+  static const String COL_ID = "id";
+  static const String COL_NAME = "name";
+  static const String COL_AGE = "age";
+  static const String COL_GENDER = "gender";
+  static const String COL_HEIGHT = "height";
+  static const String COL_WEIGHT = "weight";
+  static const String COL_BLOOD = "blood";
 
+  Database? _myDB;
 
-  Database? myDB; //It can be null
-
-  //DB Open (Path -> if exists then open else create DB)
-  Future<Database> getDB() async
-  {
-    myDB ?? await openDB();
-    return myDB!;
+  // Open or get DB instance
+  Future<Database> getDB() async {
+    _myDB ??= await _openDB();
+    return _myDB!;
   }
 
-   Future<Database> openDB() async
-  {
-    Directory appPath = await getApplicationCacheDirectory();
-    String dbPath = join(appPath.path,"user.db");
-    return await openDatabase(dbPath,onCreate:(db,version) {
+  // DB creation
+  Future<Database> _openDB() async {
+    Directory appPath = await getApplicationDocumentsDirectory();
+    String dbPath = join(appPath.path, "user.db");
 
-      //Create all tables here
-      //User info table
-      db.execute(
-          "create table $TABLE_NAME ("
-          "$COL_ID integer primary key autoincrement,"
-          "$COL_NAME text"
-          "$COL_AGE integer,"
-          "$COL_GENDER text"
-      );
-
-    },version: 1);
+    return await openDatabase(
+      dbPath,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE $TABLE_NAME (
+            $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_NAME TEXT,
+            $COL_AGE INTEGER,
+            $COL_GENDER TEXT,
+            $COL_HEIGHT INTEGER,
+            $COL_WEIGHT INTEGER,
+            $COL_BLOOD TEXT
+          )
+        ''');
+        print("✅ Database & Table Created");
+      },
+    );
   }
 
-  //All queries
-
-  //insertion
-  Future<bool> addUser({required String name,required int age,required String gender}) async
-  {
+  // Insert User
+  Future<bool> addUser({
+    required String name,
+    required int age,
+    required String gender,
+    required int height,
+    required int weight,
+    required String blood,
+  }) async {
     var db = await getDB();
-    int rowsAffected = await db.insert(TABLE_NAME,{
+    int rowsAffected = await db.insert(TABLE_NAME, {
       COL_NAME: name,
-      COL_NAME: age,
+      COL_AGE: age,
       COL_GENDER: gender,
+      COL_HEIGHT: height,
+      COL_WEIGHT: weight,
+      COL_BLOOD: blood,
     });
-    return rowsAffected>0;
+    print("🟢 User Inserted Rows: $rowsAffected");
+    return rowsAffected > 0;
   }
- //reading all data
-  Future<List<Map<String,dynamic>>> getUsers() async
-  {
+
+  // Get all users
+  Future<List<Map<String, dynamic>>> getUsers() async {
     var db = await getDB();
-    List<Map<String,dynamic>> data = await db.query(TABLE_NAME);
+    final data = await db.query(TABLE_NAME);
+    print("📦 Retrieved Users: ${data.length}");
     return data;
   }
-
-
 }
