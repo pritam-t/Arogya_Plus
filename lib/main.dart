@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
+import 'data/local/db_helper.dart';
 import 'features/user_screens/Splash_Screen.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
@@ -16,6 +17,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    DBHelper db = DBHelper.getInstance;
+
     return MaterialApp(
       title: 'MediScan+',
       theme: AppTheme.lightTheme,
