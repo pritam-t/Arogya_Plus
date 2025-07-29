@@ -7,6 +7,7 @@ import 'data/local/db_helper.dart';
 import 'features/user_screens/Splash_Screen.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
+import 'features/user_screens/navigation.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,6 +25,7 @@ class MyApp extends StatelessWidget {
       title: 'MediScan+',
       theme: AppTheme.lightTheme,
       routes: {
+        '/navigator-bar' : (context) => const NavigatorBar(),
         '/profile-setup': (context) => const ProfileSetupScreen(),
         '/userdashboard': (context) => const UserDashBoard(),
         '/login': (context) => const LoginScreen(),
@@ -209,7 +211,7 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           elevation: elevationS,
-          shadowColor: primaryColor.withOpacity(0.3),
+          shadowColor: primaryColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadiusL),
           ),
@@ -262,13 +264,13 @@ class AppTheme {
 
       // Checkbox Theme
       checkboxTheme: CheckboxThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) {
-          if (states.contains(MaterialState.selected)) {
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
             return primaryColor;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(Colors.white),
+        checkColor: WidgetStateProperty.all(Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
         ),

@@ -291,7 +291,7 @@ class SplashScreenState extends State<SplashScreen>
     if(isLoggedIn!=null)
       {
         if(isLoggedIn) {
-          navigator.pushReplacementNamed('/userdashboard');
+          navigator.pushReplacementNamed('/navigator-bar');
         } else {
           navigator.pushReplacementNamed('/login');
         }

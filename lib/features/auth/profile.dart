@@ -184,7 +184,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           );
 
           // Navigate to dashboard
-          navigator.pushReplacementNamed('/userdashboard');
+          navigator.pushReplacementNamed('/navigator-bar');
         } else {
           throw Exception('Failed to save user data');
         }

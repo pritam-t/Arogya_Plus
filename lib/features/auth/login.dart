@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mediscan_plus/features/auth/signup.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../user_screens/Splash_Screen.dart';
-import '../user_screens/dashboard.dart';
-import 'forgotpass.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -74,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
     sharePref.setBool(SplashScreenState.KEYLOGIN, true);
 
     // Navigate to dashboard
-    navigator.pushReplacementNamed('/userdashboard');
+    navigator.pushReplacementNamed('/navigator-bar');
 
   }
 

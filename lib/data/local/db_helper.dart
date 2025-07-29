@@ -22,13 +22,15 @@ class DBHelper {
   Database? _myDB;
 
   // Open or get DB instance
-  Future<Database> getDB() async {
+  Future<Database> getDB() async
+  {
     _myDB ??= await _openDB();
     return _myDB!;
   }
 
   // DB creation
-  Future<Database> _openDB() async {
+  Future<Database> _openDB() async
+  {
     Directory appPath = await getApplicationDocumentsDirectory();
     String dbPath = join(appPath.path, "user.db");
 
@@ -47,7 +49,6 @@ class DBHelper {
             $COL_BLOOD TEXT
           )
         ''');
-        print("✅ Database & Table Created");
       },
     );
   }
@@ -60,7 +61,8 @@ class DBHelper {
     required int height,
     required int weight,
     required String blood,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.insert(TABLE_NAME, {
       COL_NAME: name,
@@ -70,15 +72,46 @@ class DBHelper {
       COL_WEIGHT: weight,
       COL_BLOOD: blood,
     });
-    print("🟢 User Inserted Rows: $rowsAffected");
     return rowsAffected > 0;
   }
 
   // Get all users
-  Future<List<Map<String, dynamic>>> getUsers() async {
+  Future<List<Map<String, dynamic>>> getUsers() async
+  {
     var db = await getDB();
     final data = await db.query(TABLE_NAME);
-    print("📦 Retrieved Users: ${data.length}");
     return data;
   }
+
+  //Update info
+  Future<bool> updateUser({
+    required int id,
+    required String name,
+    required int age,
+    required String gender,
+    required int height,
+    required int weight,
+    required String blood}) async
+  {
+  var db = await getDB();
+  int rowsAffected= await db.update(TABLE_NAME, {
+    COL_NAME: name,
+    COL_AGE: age,
+    COL_GENDER: gender,
+    COL_HEIGHT: height,
+    COL_WEIGHT: weight,
+  },where: "$COL_ID+=?",whereArgs: [id]);
+  return rowsAffected>0;
+}
+
+//Delete info
+  Future<bool> deleteUser({required int id}) async
+  {
+    var db = await getDB();
+    int rowsAffected = await db.delete(
+        TABLE_NAME,
+        where: "$COL_ID=?", whereArgs: [id]);
+    return rowsAffected > 0;
+  }
+
 }
