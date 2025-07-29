@@ -39,6 +39,9 @@ dependencies:
   path: ^1.9.1
   eva_icons_flutter: ^3.1.0 #Icons Pack Colorful icons
   font_awesome_flutter: ^10.8.0 #Thousand of Icons
+  image_picker: ^1.1.2 #To choose image/ pdf from the device storage
+  google_mlkit_text_recognition: ^0.15.0 # Google mlkit
+  camera: ^0.11.2 # Acess to device camera
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
