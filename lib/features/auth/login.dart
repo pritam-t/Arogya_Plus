@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../user_screens/Splash_Screen.dart';
+import '../../Splash_Screen.dart';
 
 
 class LoginScreen extends StatefulWidget {

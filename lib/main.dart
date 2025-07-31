@@ -4,10 +4,10 @@ import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
 import 'data/local/db_helper.dart';
-import 'features/user_screens/Splash_Screen.dart';
+import 'Splash_Screen.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
-import 'features/user_screens/navigation.dart';
+import 'features/back_screens/navigation.dart';
 
 void main() {
   runApp(const MyApp());
