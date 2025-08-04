@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mediscan_plus/features/back_screens/nearby_doc.dart';
 import 'package:mediscan_plus/features/user_screens/user_setting.dart';
 import 'package:mediscan_plus/main.dart';
 import '../user_screens/ai_assistant.dart';
@@ -11,10 +12,10 @@ class NavigatorBar extends StatefulWidget {
   const NavigatorBar({super.key});
 
   @override
-  State<NavigatorBar> createState() => _NavigatorBarState();
+  State<NavigatorBar> createState() => NavigatorBarState();
 }
 
-class _NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixin {
+class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixin {
   int currentPage = 0;
   late AnimationController _animationController;
   late AnimationController _centerButtonController;
@@ -28,6 +29,7 @@ class _NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMix
     SafeArea(child: ScanMedi_Screen()),
     SafeArea(child: User_Logs_Screen()),
     SafeArea(child: UserSetting_Screen()),
+    SafeArea(child: NearbyDoc_Screen()),
 
     // Placeholder screens for demo
     const Center(child: Text('Home Screen', style: TextStyle(fontSize: 24))),
@@ -122,107 +124,121 @@ class _NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMix
     });
   }
 
+  void goToNearbyDoctors() {
+    setState(() {
+      currentPage = 5; // Assuming it's the 6th item
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        body: IndexedStack(
-          index: currentPage,
-          children: pages,
-        ),
-        bottomNavigationBar: SizedBox(
-          height: 100,
-          child: Stack(
-            children: [
-              // Main navigation bar
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceColor,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(25),
-                      topRight: Radius.circular(25),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black,
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
+    return PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop && currentPage != 0) {
+        setState(() {
+          currentPage = 0;
+        });
+      }
+    },
+    child: Scaffold(
+    body: IndexedStack(
+    index: currentPage,
+    children: pages,
+    ),
+          bottomNavigationBar: SizedBox(
+            height: 100,
+            child: Stack(
+              children: [
+                // Main navigation bar
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 70,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(25),
+                        topRight: Radius.circular(25),
                       ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      // Left items (Home, Search)
-                      for (int i = 0; i < 2; i++)
-                        _buildNavigationItem(i),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black,
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        // Left items (Home, Search)
+                        for (int i = 0; i < 2; i++)
+                          _buildNavigationItem(i),
 
-                      // Center space for floating button
-                      const SizedBox(width: 60),
+                        // Center space for floating button
+                        const SizedBox(width: 60),
 
-                      // Right items (Cart, Profile)
-                      for (int i = 3; i < navigationItems.length; i++)
-                        _buildNavigationItem(i),
-                    ],
+                        // Right items (Cart, Profile)
+                        for (int i = 3; i < navigationItems.length; i++)
+                          _buildNavigationItem(i),
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
-              // Floating center button
-              Positioned(
-                top: 5,
-                left: MediaQuery.of(context).size.width / 2 - 30,
-                child: AnimatedBuilder(
-                  animation: _centerButtonAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _centerButtonAnimation.value,
-                      child: GestureDetector(
-                        onTap: () => _onItemTapped(2),
-                        child: Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                AppTheme.primaryColor,
-                                AppTheme.primaryLight,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryColor,
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
+                // Floating center button
+                Positioned(
+                  top: 5,
+                  left: MediaQuery.of(context).size.width / 2 - 30,
+                  child: AnimatedBuilder(
+                    animation: _centerButtonAnimation,
+                    builder: (context, child) {
+                      return Transform.scale(
+                        scale: _centerButtonAnimation.value,
+                        child: GestureDetector(
+                          onTap: () => _onItemTapped(2),
+                          child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  AppTheme.primaryColor,
+                                  AppTheme.primaryLight,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            ],
-                          ),
-                          child: Icon(
-                            currentPage == 2
-                                ? navigationItems[2].activeIcon
-                                : navigationItems[2].icon,
-                            color: Colors.white,
-                            size: 35,
+                              borderRadius: BorderRadius.circular(30),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor,
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              currentPage == 2
+                                  ? navigationItems[2].activeIcon
+                                  : navigationItems[2].icon,
+                              color: Colors.white,
+                              size: 35,
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildNavigationItem(int index) {

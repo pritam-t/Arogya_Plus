@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
-import 'data/local/db_helper.dart';
 import 'Splash_Screen.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
 import 'features/back_screens/navigation.dart';
+import 'features/back_screens/nearby_doc.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +19,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    DBHelper db = DBHelper.getInstance;
 
     return MaterialApp(
       title: 'MediScan+',
@@ -27,10 +26,12 @@ class MyApp extends StatelessWidget {
       routes: {
         '/navigator-bar' : (context) => const NavigatorBar(),
         '/profile-setup': (context) => const ProfileSetupScreen(),
-        '/userdashboard': (context) => const UserDashBoard(),
+        '/userdashboard': (context) =>  UserDashBoard(),
         '/login': (context) => const LoginScreen(),
         '/forgotpass': (context) => const ForgotPasswordScreen(),
         '/signup': (context) => const SignUpScreen(),
+
+        '/near-doc': (context) =>const NearbyDoc_Screen(),
       },
 
       debugShowCheckedModeBanner: false,
@@ -50,6 +51,7 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF6B7280);
   static const Color textHint = Color(0xFF9CA3AF);
   static const Color borderColor = Color(0xFFE5E7EB);
+  static const Color warningColor = Color(0xFFF59E0B);
   static const Color errorColor = Color(0xFFEF4444);
   static const Color successColor = Color(0xFF10B981);
 
