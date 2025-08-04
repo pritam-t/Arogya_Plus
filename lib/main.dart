@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
 
 class AppTheme {
   // App Colors
-  static const Color primaryColor = Color(0xFF2563EB);
+  static const Color primaryColor = Color(0xFF147FFF);
   static const Color primaryDark = Color(0xFF1E40AF);
   static const Color primaryLight = Color(0xFF3B82F6);
   static const Color backgroundColor = Color(0xFFF9FAFB);
