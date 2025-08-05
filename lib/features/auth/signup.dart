@@ -120,6 +120,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final navigator = Navigator.of(context);
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -128,7 +129,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => navigator.pushReplacementNamed('/login'),
         ),
       ),
       body: SafeArea(
