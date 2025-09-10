@@ -1,6 +1,4 @@
 import 'dart:convert';
-
-import 'package:flutter/animation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:mediscan_plus/Provider/Cubit/search_state.dart';
@@ -20,7 +18,7 @@ chatList.add({
   "role": "user",
   "parts": [
     {
-      "text": query
+      "text": "You are an AI health assistant. Always respond in a supportive, easy-to-understand, and professional manner.- Explain answers clearly with short paragraphs or bullet points.- If the query is medical, provide possible explanations, lifestyle tips, and when to seek a doctor. - Always include a gentle disclaimer that this is not medical advice and the user should consult a healthcare professional.Now answer the user’s query: $query"
     }
   ]
 });
