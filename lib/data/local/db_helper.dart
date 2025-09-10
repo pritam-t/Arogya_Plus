@@ -3,9 +3,6 @@ import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
-import '../../Model/appointment_model.dart';
-import '../../Model/medication_model.dart';
-
 class DBHelper {
   DBHelper._();
 
@@ -25,17 +22,16 @@ class DBHelper {
   static const String MEDICATION_TABLE = "medications";
   static const String COL_MED_ID = "id";
   static const String COL_MED_NAME = "name";
-  static const String COL_MED_DESCRIPTION = "description";
-  static const String COL_MED_TIME = "time";
+  static const String COL_MED_DOSAGE = "dosage";
+  static const String COL_MED_TIME = "time"; // stored as INTEGER (Unix timestamp)
   static const String COL_MED_IS_TAKEN = "isTaken";
-
 
   static const String APPOINTMENTS_TABLE = "appointments";
   static const String COL_APPOINT_ID = "id";
   static const String COL_APPOINT_DOCTOR = "doctor";
   static const String COL_APPOINT_SPECIALTY = "specialty";
-  static const String COL_APPOINT_DATE = "date";
-  static const String COL_APPOINT_TIME = "time";
+  static const String COL_APPOINT_DATE = "date"; // stored as INTEGER (Unix timestamp)
+  static const String COL_APPOINT_TIME = "time"; // stored as TEXT (e.g. '14:30')
   static const String COL_APPOINT_TYPE = "type";
 
   Database? _myDB;
@@ -57,6 +53,7 @@ class DBHelper {
       dbPath,
       version: 1,
       onCreate: (db, version) async {
+        // Users table
         await db.execute('''
           CREATE TABLE $USERS_TABLE (
             $COL_ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,35 +66,34 @@ class DBHelper {
           )
         ''');
 
-        // Create medications table
+        // Medications table
         await db.execute('''
-        CREATE TABLE $MEDICATION_TABLE (
-          $COL_MED_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-          $COL_MED_NAME TEXT,
-          $COL_MED_DESCRIPTION TEXT,
-          $COL_MED_TIME TEXT,
-          $COL_MED_IS_TAKEN INTEGER
-        )
-      ''');
+          CREATE TABLE $MEDICATION_TABLE (
+            $COL_MED_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_MED_NAME TEXT NOT NULL,
+            $COL_MED_DOSAGE TEXT,
+            $COL_MED_TIME INTEGER NOT NULL,
+            $COL_MED_IS_TAKEN INTEGER NOT NULL DEFAULT 0
+          )
+        ''');
 
-        // Create appointments table
+        // Appointments table
         await db.execute('''
-        CREATE TABLE $APPOINTMENTS_TABLE (
-          $COL_APPOINT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-          $COL_APPOINT_DOCTOR TEXT,
-          $COL_APPOINT_SPECIALTY TEXT,
-          $COL_APPOINT_DATE TEXT,
-          $COL_APPOINT_TIME TEXT,
-          $COL_APPOINT_TYPE TEXT
-        )
-      ''');
+          CREATE TABLE $APPOINTMENTS_TABLE (
+            $COL_APPOINT_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            $COL_APPOINT_DOCTOR TEXT NOT NULL,
+            $COL_APPOINT_SPECIALTY TEXT,
+            $COL_APPOINT_DATE INTEGER NOT NULL,
+            $COL_APPOINT_TIME TEXT,
+            $COL_APPOINT_TYPE TEXT
+          )
+        ''');
       },
     );
   }
 
+  // --------------------- USER PROFILE ---------------------
 
-  //TODO-------------------------USER-PROFILE-DATA------------------------------
-  // Insert User
   Future<bool> addUser({
     required String name,
     required int age,
@@ -119,15 +115,12 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  // Get all users
   Future<List<Map<String, dynamic>>> getUsers() async
   {
     var db = await getDB();
-    final data = await db.query(USERS_TABLE);
-    return data;
+    return await db.query(USERS_TABLE);
   }
 
-  //Update info
   Future<bool> updateUser({
     required int id,
     required String name,
@@ -135,108 +128,166 @@ class DBHelper {
     required String gender,
     required int height,
     required int weight,
-    required String blood}) async
+    required String blood,
+  }) async
   {
-  var db = await getDB();
-  int rowsAffected= await db.update(USERS_TABLE, {
-    COL_NAME: name,
-    COL_AGE: age,
-    COL_GENDER: gender,
-    COL_HEIGHT: height,
-    COL_WEIGHT: weight,
-  },where: "$COL_ID+=?",whereArgs: [id]);
-  return rowsAffected>0;
-}
+    var db = await getDB();
+    int rowsAffected = await db.update(
+      USERS_TABLE,
+      {
+        COL_NAME: name,
+        COL_AGE: age,
+        COL_GENDER: gender,
+        COL_HEIGHT: height,
+        COL_WEIGHT: weight,
+        COL_BLOOD: blood,
+      },
+      where: "$COL_ID = ?",
+      whereArgs: [id],
+    );
+    return rowsAffected > 0;
+  }
 
-//Delete info
   Future<bool> deleteUser({required int id}) async
   {
     var db = await getDB();
     int rowsAffected = await db.delete(
-        USERS_TABLE,
-        where: "$COL_ID=?", whereArgs: [id]);
-    return rowsAffected > 0;
-  }
-
-//TODO-------------------------MEDICATION-DATA------------------------------
-
-// Insert Medication
-  Future<bool> addMedication(Medication medication) async {
-    final db = await getDB();
-    final result = await db.insert('medications', medication.toMap());
-    return result > 0;
-  }
-
-// Get All Medications
-  Future<List<Medication>> getAllMedications() async {
-    final db = await getDB();
-    final maps = await db.query('medications');
-    return maps.map((map) => Medication.fromMap(map)).toList();
-  }
-
-// Update Medication
-  Future<bool> updateMedication(Medication medication) async {
-    final db = await getDB();
-    final rowsAffected = await db.update(
-      'medications',
-      medication.toMap(),
-      where: 'id = ?',
-      whereArgs: [medication.id],
-    );
-    return rowsAffected > 0;
-  }
-
-// Delete Medication
-  Future<bool> deleteMedication(int id) async {
-    final db = await getDB();
-    final rowsAffected = await db.delete(
-      'medications',
-      where: 'id = ?',
+      USERS_TABLE,
+      where: "$COL_ID = ?",
       whereArgs: [id],
     );
     return rowsAffected > 0;
   }
 
-
-
-//TODO-------------------------APPOINTMENT-DATA------------------------------
-
-  Future<bool> insertAppointment(Appointment appointment) async {
-    final db = await getDB();
-    final result = await db.insert('appointments', appointment.toMap());
-    return result > 0;
+  // --------------------- MEDICATIONS ---------------------
+// Add medication
+  Future<bool> addMedication({
+    required String name,
+    required String dosage,
+    required int time, // millisecondsSinceEpoch
+    required bool isTaken,
+  }) async {
+    var db = await getDB();
+    int rowsAffected = await db.insert(MEDICATION_TABLE, {
+      COL_MED_NAME: name,
+      COL_MED_DOSAGE: dosage,
+      COL_MED_TIME: time,
+      COL_MED_IS_TAKEN: isTaken ? 1 : 0, // convert to int
+    });
+    return rowsAffected > 0;
   }
 
-  Future<List<Appointment>> getAllAppointments() async {
-    final db = await getDB();
-    final List<Map<String, dynamic>> maps = await db.query(
-      'appointments',
-      orderBy: 'date DESC, time DESC',
-    );
-
-    return maps.map((map) => Appointment.fromMap(map)).toList();
+// Get all medications
+  Future<List<Map<String, dynamic>>> getAllMedications() async {
+    var db = await getDB();
+    return await db.query(MEDICATION_TABLE);
   }
 
-  Future<bool> updateAppointment(Appointment appointment) async {
-    final db = await getDB();
-    final result = await db.update(
-      'appointments',
-      appointment.toMap(),
-      where: 'id = ?',
-      whereArgs: [appointment.id],
-    );
-    return result > 0;
-  }
-
-  Future<bool> deleteAppointment(int id) async {
-    final db = await getDB();
-    final result = await db.delete(
-      'appointments',
-      where: 'id = ?',
+// Update medication
+  Future<bool> updateMedication({
+    required int id,
+    required String name,
+    required String dosage,
+    required int time,
+    required bool isTaken,
+  }) async {
+    var db = await getDB();
+    int rowsAffected = await db.update(
+      MEDICATION_TABLE,
+      {
+        COL_MED_NAME: name,
+        COL_MED_DOSAGE: dosage,
+        COL_MED_TIME: time,
+        COL_MED_IS_TAKEN: isTaken ? 1 : 0,
+      },
+      where: "$COL_MED_ID = ?",
       whereArgs: [id],
     );
-    return result > 0;
+    return rowsAffected > 0;
+  }
+
+// Delete medication
+  Future<bool> deleteMedication({required int id}) async {
+    var db = await getDB();
+    int rowsAffected = await db.delete(
+      MEDICATION_TABLE,
+      where: "$COL_MED_ID = ?",
+      whereArgs: [id],
+    );
+    return rowsAffected > 0;
+  }
+
+// Toggle isTaken status
+  Future<bool> toggleMedicationStatus(int id, bool isTaken) async {
+    var db = await getDB();
+    int rows = await db.update(
+      MEDICATION_TABLE,
+      {COL_MED_IS_TAKEN: isTaken ? 1 : 0},
+      where: "$COL_MED_ID = ?",
+      whereArgs: [id],
+    );
+    return rows > 0;
   }
 
 
+  // --------------------- APPOINTMENTS ---------------------
+
+  Future<bool> insertAppointment({
+    required String doctor,
+    required String specialty,
+    required int date, // store as millisecondsSinceEpoch
+    required String time, // store as formatted text '14:30'
+    required String type,
+  }) async {
+    var db = await getDB();
+    int rowsAffected = await db.insert(APPOINTMENTS_TABLE, {
+      COL_APPOINT_DOCTOR: doctor,
+      COL_APPOINT_SPECIALTY: specialty,
+      COL_APPOINT_DATE: date,
+      COL_APPOINT_TIME: time,
+      COL_APPOINT_TYPE: type,
+    });
+    return rowsAffected > 0;
+  }
+
+  Future<List<Map<String, dynamic>>> getAllAppointments() async {
+    var db = await getDB();
+    return await db.query(
+      APPOINTMENTS_TABLE,
+      orderBy: "$COL_APPOINT_DATE ASC, $COL_APPOINT_TIME ASC",
+    );
+  }
+
+  Future<bool> updateAppointment({
+    required int id,
+    required String doctor,
+    required String specialty,
+    required int date,
+    required String time,
+  }) async
+  {
+    var db = await getDB();
+    int rowsAffected = await db.update(
+      APPOINTMENTS_TABLE,
+      {
+        COL_APPOINT_DOCTOR: doctor,
+        COL_APPOINT_SPECIALTY: specialty,
+        COL_APPOINT_DATE: date,
+        COL_APPOINT_TIME: time,
+      },
+      where: "$COL_APPOINT_ID = ?",
+      whereArgs: [id],
+    );
+    return rowsAffected > 0;
+  }
+
+  Future<bool> deleteAppointment({required int id}) async {
+    var db = await getDB();
+    int rowsAffected = await db.delete(
+      APPOINTMENTS_TABLE,
+      where: "$COL_APPOINT_ID = ?",
+      whereArgs: [id],
+    );
+    return rowsAffected > 0;
+  }
 }

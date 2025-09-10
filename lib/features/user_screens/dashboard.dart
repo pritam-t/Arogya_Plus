@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../data/local/db_helper.dart';
 import '../../main.dart';
 import '../back_screens/navigation.dart';
 
@@ -10,17 +11,6 @@ class UserDashBoard extends StatefulWidget {
 }
 
 class _UserDashboardScreenState extends State<UserDashBoard> {
-  final List<Map<String, dynamic>> medications = [ ];
-
-  final List<Map<String, dynamic>> appointments = [
-    {
-      'doctor': 'Dr. Ahuja',
-      'specialty': 'Cardiologist',
-      'date': '6 Aug',
-      'time': '10:30 AM',
-      'type': 'Checkup',
-    },
-  ];
 
   // Controllers for add medication dialog
   final TextEditingController _medicationNameController = TextEditingController();
@@ -28,10 +18,91 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
   final TextEditingController _conditionController = TextEditingController();
   TimeOfDay _selectedTime = TimeOfDay.now();
 
-  void toggleMedicationTaken(int index) {
+  final DBHelper dbref = DBHelper.getInstance;
+
+  Map<String, dynamic>? userinfo;
+
+  List<Map<String, dynamic>> medications = [ ];
+
+  List<Map<String, dynamic>> appointments = [ ];
+
+  Future<void> getAll() async {
+    try {
+      final users = await dbref.getUsers();
+      final meds = await dbref.getAllMedications();
+      final appoints = await dbref.getAllAppointments();
+
+      setState(() {
+        userinfo = users.isNotEmpty ? users.first : null;
+        medications = meds;
+        appointments = appoints;
+      });
+    } catch (e) {
+      print("Error loading data: $e");
+    }
+  }
+
+  Future<void> _loadMedicationsFromDB() async {
+    final data = await DBHelper.getInstance.getAllMedications();
     setState(() {
-      medications[index]['isTaken'] = !medications[index]['isTaken'];
+      medications = data;
     });
+  }
+
+  void toggleMedicationTaken(int index) async {
+    final med = medications[index];
+    final updated = await DBHelper.getInstance.updateMedication(
+      id: med[DBHelper.COL_MED_ID],
+      name: med[DBHelper.COL_MED_NAME],
+      dosage: med[DBHelper.COL_MED_DOSAGE],
+      time: med[DBHelper.COL_MED_TIME],
+      isTaken: !(med[DBHelper.COL_MED_IS_TAKEN] == 1 || med[DBHelper.COL_MED_IS_TAKEN] == true),
+    );
+    if(updated) _loadMedicationsFromDB();
+  }
+
+  void _addMedication() async {
+    final String dosage = _dosageController.text.isNotEmpty && _conditionController.text.isNotEmpty
+        ? 'Dosage: ${_dosageController.text}, Condition: ${_conditionController.text}'
+        : _dosageController.text.isNotEmpty ? 'Dosage: ${_dosageController.text}' : _conditionController.text.isNotEmpty
+        ? 'Condition: ${_conditionController.text}' : '';
+
+    final now = DateTime.now();
+    final medicationTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
+    if (medications.any((m) => m[DBHelper.COL_MED_NAME] == _medicationNameController.text.trim())) {
+      return;
+    }
+    final added = await DBHelper.getInstance.addMedication(
+      name: _medicationNameController.text,
+      dosage: dosage,
+      time: medicationTime.millisecondsSinceEpoch,
+      isTaken: false,
+    );
+
+    if(added){
+      _clearDialogFields();
+      _loadMedicationsFromDB();
+      getAll();
+
+    }
+  }
+
+  void deleteMedication(int index) async{
+    final medId = medications[index][DBHelper.COL_MED_ID];
+    final deleted = await DBHelper.getInstance.deleteMedication(
+      id: medId
+    );
+    if(deleted)
+      {
+        _loadMedicationsFromDB();
+      }
   }
 
   void _showAddMedicationDialog() {
@@ -158,31 +229,6 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-  void _addMedication() {
-    final String description = _dosageController.text.isNotEmpty && _conditionController.text.isNotEmpty
-        ? '${_dosageController.text} - ${_conditionController.text}'
-        : _dosageController.text.isNotEmpty
-        ? _dosageController.text
-        : _conditionController.text;
-
-    setState(() {
-      medications.add({
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
-        'name': _medicationNameController.text,
-        'description': description,
-        'time': _selectedTime.format(context),
-        'isTaken': false,
-      });
-    });
-    _clearDialogFields();
-  }
-
-  void deleteMedication(int index) {
-    setState(() {
-      medications.removeAt(index);
-    });
-  }
-
   void _confirmDeleteMedication(int index) {
     showDialog(
       context: context,
@@ -212,6 +258,13 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     _dosageController.clear();
     _conditionController.clear();
     _selectedTime = TimeOfDay.now();
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    getAll();
   }
 
   @override
@@ -313,14 +366,21 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Pritam Thopate",
+                  userinfo == null ? '' : userinfo![DBHelper.COL_NAME],
                   style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Age: 20 • Male",
+                  'Age: ${userinfo == null ? '' : userinfo![DBHelper.COL_AGE]}',
+                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textHint,
+                  ),
+                ),
+                SizedBox(width: 8), // Add space between the two Text widgets
+                Text(
+                  'Gender: ${userinfo == null ? '' : userinfo![DBHelper.COL_GENDER]}',
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textHint,
                   ),
@@ -512,7 +572,13 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
   }
 
   Widget _buildCompactMedicationItem(Map<String, dynamic> medication, int index, bool isLast) {
-    final bool isTaken = medication['isTaken'] ?? false;
+
+    final bool isTaken = medication[DBHelper.COL_MED_IS_TAKEN] == 1;
+    final int timeStamp = medication[DBHelper.COL_MED_TIME];
+    final medicationDateTime = DateTime.fromMillisecondsSinceEpoch(timeStamp);
+    final medicationTime = TimeOfDay.fromDateTime(medicationDateTime).format(context);
+
+
 
     return GestureDetector(
       onTap: () => toggleMedicationTaken(index),
@@ -551,17 +617,17 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    medication['name'],
+                    medication[DBHelper.COL_MED_NAME],
                     style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       decoration: isTaken ? TextDecoration.lineThrough : null,
                       color: isTaken ? AppTheme.textHint : null,
                     ),
                   ),
-                  if (medication['description'].isNotEmpty) ...[
+                  if (medication[DBHelper.COL_MED_DOSAGE].toString().isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      medication['description'],
+                      medication[DBHelper.COL_MED_DOSAGE],
                       style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                         color: AppTheme.textHint,
                         decoration: isTaken ? TextDecoration.lineThrough : null,
@@ -582,7 +648,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                medication['time'],
+                medicationTime,
                 style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                   color: isTaken ? AppTheme.successColor : AppTheme.primaryColor,
                   fontWeight: FontWeight.w500,
