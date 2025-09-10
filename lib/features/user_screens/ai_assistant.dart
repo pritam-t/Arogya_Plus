@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:mediscan_plus/Provider/Cubit/search_cubit.dart';
-import 'package:mediscan_plus/main.dart';
 import '../../Provider/Cubit/search_state.dart';
 
 class AI_Assistant_Screen extends StatefulWidget {
@@ -90,10 +89,10 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white,
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -178,7 +177,7 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black12,
                             blurRadius: 20,
                             offset: const Offset(0, 10),
                           ),
@@ -242,9 +241,9 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white70,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
+        border: Border.all(color: Colors.white54),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -285,27 +284,27 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        chatStarted = false;
-                        searchController.clear();
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
+                  // GestureDetector(
+                  //   onTap: () {
+                  //     setState(() {
+                  //       chatStarted = false;
+                  //       searchController.clear();
+                  //     });
+                  //   },
+                  //   child: Container(
+                  //     padding: const EdgeInsets.all(8),
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.white.withOpacity(0.2),
+                  //       borderRadius: BorderRadius.circular(12),
+                  //     ),
+                  //     child: const Icon(
+                  //       Icons.arrow_back_ios_new,
+                  //       color: Colors.white,
+                  //       size: 20,
+                  //     ),
+                  //   ),
+                  // ),
+                  // const SizedBox(width: 16),    //Guesture detector
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -328,18 +327,11 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Health Assistant",
+                          "AI Health Assistant",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          "Online • Ready to help",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -352,7 +344,7 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
             // Chat Messages Area
             Expanded(
               child: Container(
-                margin: const EdgeInsets.only(top: 20),
+                margin: const EdgeInsets.only(top: 1),
                 decoration: const BoxDecoration(
                   color: Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.only(
@@ -433,7 +425,7 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
           ),
           const SizedBox(height: 20),
           const Text(
-            "Analyzing your query...",
+            "Analyzing your Issue...",
             style: TextStyle(
               color: Colors.grey,
               fontSize: 16,
@@ -527,6 +519,15 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
               ),
             ),
             const SizedBox(height: 10),
+            Text(
+              "💡 Tip: Be specific about symptoms, medications, or health concerns for better assistance",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
 
           ],
         ),
@@ -604,16 +605,7 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> with TickerPr
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            "💡 Tip: Be specific about symptoms, medications, or health concerns for better assistance",
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-              fontStyle: FontStyle.italic,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          // const SizedBox(height: 12),
         ],
       ),
     );
