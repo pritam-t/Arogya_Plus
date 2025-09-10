@@ -212,7 +212,7 @@ class SplashScreenState extends State<SplashScreen>
 
                     // App name
                     const Text(
-                      'MediScan+',
+                      'Ojas+',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,

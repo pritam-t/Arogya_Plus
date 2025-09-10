@@ -177,7 +177,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 8),
 
                 const Text(
-                  'Join MediScan+ for better health management',
+                  'Join Ojas+ for better health management',
                   style: TextStyle(
                     fontSize: 16,
                     color: Color(0xFF6B7280),

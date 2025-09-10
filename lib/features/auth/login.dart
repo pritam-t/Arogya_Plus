@@ -125,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
 
                 const Text(
-                  'Sign in to your MediScan+ account',
+                  'Sign in to your Ojas+ account',
                   style: TextStyle(
                     fontSize: 16,
                     color: Color(0xFF6B7280),
@@ -261,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Login button
                 SizedBox(
                   width: double.infinity,
-                  height: 56,
+                  height: 60,
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _loginWithEmail,
                     style: ElevatedButton.styleFrom(
