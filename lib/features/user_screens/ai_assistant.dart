@@ -93,7 +93,7 @@ class _AI_Assistant_ScreenState extends State<AI_Assistant_Screen> {
               controller: searchController,
               decoration: InputDecoration(
                 labelText: 'Search',
-                hintText: "Can i take paracetamol in my prescription?",
+                hintText: "Can i take paracetamol in my prescription ?",
                 prefixIcon: Icon(Icons.search),
                 border:OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
