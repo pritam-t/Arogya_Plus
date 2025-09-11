@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:mediscan_plus/Provider/Cubit/search_cubit.dart';
 import 'package:mediscan_plus/features/back_screens/nearby_doc.dart';
 import 'package:mediscan_plus/features/user_screens/user_setting.dart';
 import 'package:mediscan_plus/main.dart';
+import '../../Provider/Assistant_Cubit/search_cubit.dart';
 import '../user_screens/ai_assistant.dart';
 import '../user_screens/dashboard.dart';
 import '../user_screens/medi_scan.dart';

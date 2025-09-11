@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
-import 'package:mediscan_plus/Provider/Cubit/search_cubit.dart';
-import '../../Provider/Cubit/search_state.dart';
+
+import '../../Provider/Assistant_Cubit/search_cubit.dart';
+import '../../Provider/Assistant_Cubit/search_state.dart';
+
 
 class AI_Assistant_Screen extends StatefulWidget {
   const AI_Assistant_Screen({super.key});
