@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
@@ -11,7 +12,8 @@ import 'features/auth/signup.dart';
 import 'features/back_screens/navigation.dart';
 import 'features/back_screens/nearby_doc.dart';
 
-void main() {
+Future<void> main() async{
+  await dotenv.load(fileName: "API.env");
   runApp(const MyApp());
 }
 

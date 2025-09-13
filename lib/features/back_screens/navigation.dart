@@ -4,6 +4,7 @@ import 'package:mediscan_plus/features/back_screens/nearby_doc.dart';
 import 'package:mediscan_plus/features/user_screens/user_setting.dart';
 import 'package:mediscan_plus/main.dart';
 import '../../Provider/Assistant_Cubit/search_cubit.dart';
+import '../../Provider/Scan_Cubit/scan_medi_cubit.dart';
 import '../user_screens/ai_assistant.dart';
 import '../user_screens/dashboard.dart';
 import '../user_screens/medi_scan.dart';
@@ -28,7 +29,7 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
   List<Widget> pages = [
     SafeArea(child: UserDashBoard()),
     SafeArea(child: BlocProvider(create: (context) => SearchCubit(),child: AI_Assistant_Screen())),
-    SafeArea(child: ScanMedi_Screen()),
+    SafeArea(child: BlocProvider(create: (context) => ScanMediCubit(),child: const ScanMedi_Screen())),
     SafeArea(child: User_Logs_Screen()),
     SafeArea(child: UserSetting_Screen()),
     SafeArea(child: NearbyDoc_Screen()),

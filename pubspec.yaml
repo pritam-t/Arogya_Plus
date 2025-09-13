@@ -51,6 +51,7 @@ dependencies:
   gpt_markdown: ^1.1.2
   flutter_bloc: ^9.1.1
   animated_text_kit: ^4.2.3
+  flutter_dotenv: ^6.0.0
 
 flutter_icons:
   android: true
