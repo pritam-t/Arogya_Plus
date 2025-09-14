@@ -32,7 +32,6 @@ dependencies:
     sdk: flutter
 
   shared_preferences: ^2.5.3 #for local data storage
-  flutter_card_swiper: ^7.0.2 #might use later
   flutter_launcher_icons: ^0.14.4 #Flutter App logo
   sqflite: ^2.4.2 #For handling persistant data in local storage
   path_provider: ^2.1.5  #It is used to get path to store and access user data locally
@@ -43,9 +42,10 @@ dependencies:
   google_mlkit_text_recognition: ^0.15.0 # Google mlkit
   camera: ^0.11.2 # Acess to device camera
   provider: ^6.1.5 #Statemanagement thorughout the application
+  firebase_core: ^4.1.0
+  firebase_auth: ^6.0.2
 
   # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   http: ^1.5.0
   gpt_markdown: ^1.1.2

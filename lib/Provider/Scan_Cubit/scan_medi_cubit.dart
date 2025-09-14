@@ -120,7 +120,7 @@ class ScanMediCubit extends Cubit<ScanState> {
     required String warnings,
     required String userProfile,
   }) async { 
-    final apiKey = dotenv.env['API_KEY'] ?? "No API Key";;
+    final apiKey = "AIzaSyA8LN4kAciLh1ktEa774o-VJ8DW6FCpp3w";
     final url =
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey";
 

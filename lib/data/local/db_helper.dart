@@ -101,8 +101,7 @@ class DBHelper {
     required int height,
     required int weight,
     required String blood,
-  }) async
-  {
+  }) async  {
     var db = await getDB();
     int rowsAffected = await db.insert(USERS_TABLE, {
       COL_NAME: name,
@@ -115,8 +114,7 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<List<Map<String, dynamic>>> getUsers() async
-  {
+  Future<List<Map<String, dynamic>>> getUsers() async {
     var db = await getDB();
     return await db.query(USERS_TABLE);
   }
@@ -129,8 +127,7 @@ class DBHelper {
     required int height,
     required int weight,
     required String blood,
-  }) async
-  {
+  }) async  {
     var db = await getDB();
     int rowsAffected = await db.update(
       USERS_TABLE,
@@ -148,8 +145,7 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<bool> deleteUser({required int id}) async
-  {
+  Future<bool> deleteUser({required int id}) async  {
     var db = await getDB();
     int rowsAffected = await db.delete(
       USERS_TABLE,
@@ -264,8 +260,7 @@ class DBHelper {
     required String specialty,
     required int date,
     required String time,
-  }) async
-  {
+  }) async  {
     var db = await getDB();
     int rowsAffected = await db.update(
       APPOINTMENTS_TABLE,

@@ -140,26 +140,36 @@ class _SignUpScreenState extends State<SignUpScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 20),
-
-                // Logo and welcome text
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  width: 100,
+                  height: 100,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
+                    color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF2563EB),
+                        color: const Color(0xFF5786EF),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.medical_services,
-                    size: 48,
-                    color: Colors.white,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/surface_logo.png',
+                      width: 76,
+                      height: 76,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Fallback icon if image fails to load
+                        return const Icon(
+                          Icons.medical_services,
+                          size: 48,
+                          color: Color(0xFF2563EB),
+                        );
+                      },
+                    ),
                   ),
                 ),
 
@@ -177,11 +187,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 8),
 
                 const Text(
-                  'Join Ojas+ for better health management',
+                  'Join Arogya+ for better health management',
                   style: TextStyle(
                     fontSize: 16,
                     color: Color(0xFF6B7280),
                   ),
+                  textAlign: TextAlign.center,
                 ),
 
                 const SizedBox(height: 40),

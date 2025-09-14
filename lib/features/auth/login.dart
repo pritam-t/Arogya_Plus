@@ -88,29 +88,41 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                 SizedBox(
+                SizedBox(
                     height: MediaQuery.of(context).size.height * 0.05),
-                // Logo and welcome text
+// Logo and welcome text
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  width: 100,
+                  height: 100,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB),
+                    color: Colors.white,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF2563EB),
+                        color: const Color(0xFF5786EF),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: const Icon(
-                    Icons.medical_services,
-                    size: 48,
-                    color: Colors.white,
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/surface_logo.png',
+                      width: 76,
+                      height: 76,
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Fallback icon if image fails to load
+                        return const Icon(
+                          Icons.medical_services,
+                          size: 48,
+                          color: Color(0xFF2563EB),
+                        );
+                      },
+                    ),
                   ),
                 ),
-
                 const SizedBox(height: 32),
 
                 const Text(
@@ -123,9 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 const SizedBox(height: 8),
-
                 const Text(
-                  'Sign in to your Ojas+ account',
+                  'Sign in to your Arogya+ account',
                   style: TextStyle(
                     fontSize: 16,
                     color: Color(0xFF6B7280),

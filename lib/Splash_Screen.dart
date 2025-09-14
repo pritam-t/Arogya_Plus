@@ -10,85 +10,41 @@ class SplashScreen extends StatefulWidget {
 }
 
 class SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
 
   static const KEYLOGIN= 'login';
 
   late AnimationController _fadeController;
-  late AnimationController _pulseController;
-  late AnimationController _scaleController;
-
   late Animation<double> _fadeAnimation;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize animation controllers
+    // Initialize animation controller
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
 
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    // Create animations
+    // Create fade animation
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeInOut,
+      curve: Curves.easeIn,
     ));
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.2,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.5,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _scaleController,
-      curve: Curves.elasticOut,
-    ));
-
-    // Start animations
-    _startAnimations();
+    // Start fade animation
+    _fadeController.forward();
 
     // Navigate after delay
     _navigateToNextScreen();
   }
 
-  void _startAnimations() {
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _fadeController.forward();
-    });
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _scaleController.forward();
-    });
-
-    Future.delayed(const Duration(milliseconds: 800), () {
-      _pulseController.repeat(reverse: true);
-    });
-  }
   void _navigateToNextScreen() {
-    Future.delayed(const Duration(milliseconds: 3500), () {
+    Future.delayed(const Duration(milliseconds: 3000), () {
       skiplogin();
     });
   }
@@ -96,8 +52,6 @@ class SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _fadeController.dispose();
-    _pulseController.dispose();
-    _scaleController.dispose();
     super.dispose();
   }
 
@@ -112,171 +66,31 @@ class SplashScreenState extends State<SplashScreen>
     );
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF2563EB), // Blue 600
-              Color(0xFF1D4ED8), // Blue 700
-              Color(0xFF0D9488), // Teal 600
-            ],
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Background decorative elements
-            Positioned(
-              top: 80,
-              left: 40,
-              child: Opacity(
-                opacity: 0.1,
-                child: Icon(
-                  Icons.security,
-                  size: 120,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 100,
-              right: 40,
-              child: Opacity(
-                opacity: 0.1,
-                child: Icon(
-                  Icons.monitor_heart,
-                  size: 100,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.3,
-              right: 80,
-              child: Opacity(
-                opacity: 0.05,
-                child: Icon(
-                  Icons.favorite,
-                  size: 80,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-
-            // Main content
-            Center(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Logo with animations
-                    AnimatedBuilder(
-                      animation: _scaleAnimation,
-                      builder: (context, child) {
-                        return Transform.scale(
-                          scale: _scaleAnimation.value,
-                          child: AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _pulseAnimation.value,
-                                child: Container(
-                                  padding: const EdgeInsets.all(24),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black,
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.medical_services,
-                                    size: 60,
-                                    color: Color(0xFF2563EB),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: Image.asset(
+            'assets/images/splashscreen_logo.png',
+            fit: BoxFit.fitHeight,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback in case image fails to load
+              return Container(
+                color: const Color(0xFF2563EB),
+                child: const Center(
+                  child: Text(
+                    'Arogya+',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
-
-                    const SizedBox(height: 32),
-
-                    // App name
-                    const Text(
-                      'Ojas+',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Tagline
-                    const Text(
-                      'AI-Powered Personal Health Assistant',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-
-                    const SizedBox(height: 60),
-
-                    // Loading indicator
-                    const SizedBox(
-                      width: 50,
-                      height: 50,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        strokeWidth: 3,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'Loading...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white60,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Version info at bottom
-            Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: const Text(
-                  'Version 1.0.0',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white54,
                   ),
                 ),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -289,13 +103,13 @@ class SplashScreenState extends State<SplashScreen>
     var isLoggedIn = sharepref.getBool(KEYLOGIN);
 
     if(isLoggedIn!=null)
-      {
-        if(isLoggedIn) {
-          navigator.pushReplacementNamed('/navigator-bar');
-        } else {
-          navigator.pushReplacementNamed('/login');
-        }
+    {
+      if(isLoggedIn) {
+        navigator.pushReplacementNamed('/navigator-bar');
+      } else {
+        navigator.pushReplacementNamed('/login');
       }
+    }
     else {
       navigator.pushReplacementNamed('/login');
     }

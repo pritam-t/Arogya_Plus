@@ -1,16 +1,141 @@
+// global_app_bar.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:mediscan_plus/features/back_screens/nearby_doc.dart';
-import 'package:mediscan_plus/features/user_screens/user_setting.dart';
 import 'package:mediscan_plus/main.dart';
+
 import '../../Provider/Assistant_Cubit/search_cubit.dart';
 import '../../Provider/Scan_Cubit/scan_medi_cubit.dart';
 import '../user_screens/ai_assistant.dart';
 import '../user_screens/dashboard.dart';
 import '../user_screens/medi_scan.dart';
 import '../user_screens/user_logs.dart';
+import '../user_screens/profile.dart';
+import 'nearby_doc.dart';
 
+class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final int currentPageIndex;
+  final VoidCallback? onNotificationPressed;
 
+  const GlobalAppBar({
+    super.key,
+    required this.currentPageIndex,
+    this.onNotificationPressed,
+  });
+
+  // Page titles
+  static const List<String> pageTitles = [
+    'Dashboard', // Home
+    'AI Assistant', // AI/Search
+    'Scan Medicine', // Scan
+    'My Logs', // Logs
+    'Profile', // Profile
+    'Nearby Doctors', // Additional
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final currentTitle = currentPageIndex < pageTitles.length
+        ? pageTitles[currentPageIndex]
+        : 'Arogya+';
+
+    return AppBar(
+      elevation: 0,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      automaticallyImplyLeading: false,
+      title: Row(
+        children: [
+          // App Logo
+          SizedBox(
+            width: screenWidth * 0.12,
+            height: screenWidth * 0.12,
+            child: Image.asset(
+              'assets/images/app_bar_logo.png',
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.medical_services,
+                  color: AppTheme.primaryColor,
+                  size: screenWidth * 0.07,
+                );
+              },
+            ),
+          ),
+
+          SizedBox(width: screenWidth * 0.03),
+
+          // Page Title
+          Expanded(
+            child: Text(
+              currentTitle,
+              style: TextStyle(
+                fontSize: screenWidth * 0.06,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        // Notification button
+        Container(
+          margin: EdgeInsets.only(right: screenWidth * 0.04),
+          width: screenWidth * 0.1,
+          height: screenWidth * 0.1,
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Stack(
+            children: [
+              IconButton(
+                icon: Icon(Icons.notifications_outlined, size: screenWidth * 0.05),
+                color: Colors.grey[700],
+                onPressed: onNotificationPressed ??
+                        () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Notifications pressed')),
+                      );
+                    },
+              ),
+              // Notification badge
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      // Bottom border
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1.0),
+        child: Container(
+          height: 1.0,
+          color: Colors.grey[200],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Size get preferredSize =>
+      const Size.fromHeight(kToolbarHeight + 8); // +1 for border
+}
+
+// ---------------- NavigatorBar ----------------
 class NavigatorBar extends StatefulWidget {
   const NavigatorBar({super.key});
 
@@ -18,110 +143,30 @@ class NavigatorBar extends StatefulWidget {
   State<NavigatorBar> createState() => NavigatorBarState();
 }
 
-class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixin {
+class NavigatorBarState extends State<NavigatorBar> {
   int currentPage = 0;
-  late AnimationController _animationController;
-  late AnimationController _centerButtonController;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _centerButtonAnimation;
 
-  // Replace these with your actual screen widgets
+  // Screens
   List<Widget> pages = [
-    SafeArea(child: UserDashBoard()),
-    SafeArea(child: BlocProvider(create: (context) => SearchCubit(),child: AI_Assistant_Screen())),
-    SafeArea(child: BlocProvider(create: (context) => ScanMediCubit(),child: const ScanMedi_Screen())),
-    SafeArea(child: User_Logs_Screen()),
-    SafeArea(child: UserSetting_Screen()),
-    SafeArea(child: NearbyDoc_Screen()),
-
-    // Placeholder screens for demo
-    const Center(child: Text('Home Screen', style: TextStyle(fontSize: 24))),
-    const Center(child: Text('AI Screen', style: TextStyle(fontSize: 24))),
-    const Center(child: Text('Scan Screen', style: TextStyle(fontSize: 24))),
-    const Center(child: Text('Log Screen', style: TextStyle(fontSize: 24))),
-    const Center(child: Text('Profile Screen', style: TextStyle(fontSize: 24))),
+    UserDashBoard(),
+    BlocProvider(create: (context) => SearchCubit(), child: AI_Assistant_Screen()),
+    BlocProvider(create: (context) => ScanMediCubit(), child: const ScanMedi_Screen()),
+    User_Logs_Screen(),
+    UserSetting_Screen(),
+    NearbyDoc_Screen(),
   ];
 
-  // Navigation items configuration
+  // Navigation items
   final List<NavigationItem> navigationItems = [
-    NavigationItem(
-      icon: Icons.home_outlined,
-      activeIcon: Icons.home,
-      label: 'Home',
-    ),
-    NavigationItem(
-      icon: Icons.smart_toy_outlined,
-      activeIcon: Icons.smart_toy_outlined,
-      label: 'Search',
-    ),
-    NavigationItem(
-      icon: Icons.document_scanner_outlined,
-      activeIcon: Icons.document_scanner_outlined,
-      label: 'Scan',
-      isCenter: true,
-    ),
-    NavigationItem(
-      icon: Icons.fact_check,
-      activeIcon: Icons.fact_check_outlined,
-      label: 'Cart',
-    ),
-    NavigationItem(
-      icon: Icons.person_outline,
-      activeIcon: Icons.person,
-      label: 'Profile',
-    ),
+    NavigationItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
+    NavigationItem(icon: Icons.smart_toy_outlined, activeIcon: Icons.smart_toy_outlined, label: 'Search'),
+    NavigationItem(icon: Icons.document_scanner_outlined, activeIcon: Icons.document_scanner_outlined, label: 'Scan', isCenter: true),
+    NavigationItem(icon: Icons.fact_check, activeIcon: Icons.fact_check_outlined, label: 'Cart'),
+    NavigationItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-
-    _centerButtonController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
-
-    _centerButtonAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _centerButtonController,
-      curve: Curves.elasticOut,
-    ));
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _centerButtonController.dispose();
-    super.dispose();
-  }
 
   void _onItemTapped(int index) {
     FocusScope.of(context).unfocus();
-
-    if (index == 2) { // Center button (Scan)
-      _centerButtonController.forward().then((_) {
-        _centerButtonController.reverse();
-      });
-    } else {
-      _animationController.forward().then((_) {
-        _animationController.reverse();
-      });
-    }
-
     setState(() {
       currentPage = index;
     });
@@ -129,28 +174,45 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
 
   void goToNearbyDoctors() {
     setState(() {
-      currentPage = 5; // Assuming it's the 6th item
+      currentPage = 5;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return PopScope(
-    canPop: false,
-    onPopInvokedWithResult: (didPop, result) {
-      if (!didPop && currentPage != 0) {
-        setState(() {
-          currentPage = 0;
-        });
-      }
-    },
-    child: Scaffold(
-    body: IndexedStack(
-    index: currentPage,
-    children: pages,
-    ),
-          bottomNavigationBar: SizedBox(
-            height: 100,
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && currentPage != 0) {
+          setState(() {
+            currentPage = 0;
+          });
+        }
+      },
+      child: Scaffold(
+        appBar: GlobalAppBar(
+          currentPageIndex: currentPage,
+          onNotificationPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('You have 3 new notifications'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        ),
+        body: IndexedStack(
+          index: currentPage,
+          children: pages,
+        ),
+
+        // Bottom Navigation Bar
+        bottomNavigationBar: SafeArea(
+          child: SizedBox(
+            height: screenHeight * 0.10,
             child: Stack(
               children: [
                 // Main navigation bar
@@ -159,7 +221,7 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 70,
+                    height: screenHeight * 0.07,
                     decoration: BoxDecoration(
                       color: AppTheme.surfaceColor,
                       borderRadius: const BorderRadius.only(
@@ -168,7 +230,7 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black,
+                          color: Colors.black.withOpacity(0.1),
                           blurRadius: 30,
                           offset: const Offset(0, 10),
                         ),
@@ -177,16 +239,12 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        // Left items (Home, Search)
-                        for (int i = 0; i < 2; i++)
-                          _buildNavigationItem(i),
-
-                        // Center space for floating button
-                        const SizedBox(width: 60),
-
-                        // Right items (Cart, Profile)
-                        for (int i = 3; i < navigationItems.length; i++)
-                          _buildNavigationItem(i),
+                        // Left items
+                        for (int i = 0; i < 2; i++) _buildNavigationItem(i, screenWidth, screenHeight),
+                        // Spacer for center button
+                        SizedBox(width: screenWidth * 0.18),
+                        // Right items
+                        for (int i = 3; i < navigationItems.length; i++) _buildNavigationItem(i, screenWidth, screenHeight),
                       ],
                     ),
                   ),
@@ -194,89 +252,61 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
 
                 // Floating center button
                 Positioned(
-                  top: 5,
-                  left: MediaQuery.of(context).size.width / 2 - 30,
-                  child: AnimatedBuilder(
-                    animation: _centerButtonAnimation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _centerButtonAnimation.value,
-                        child: GestureDetector(
-                          onTap: () => _onItemTapped(2),
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppTheme.primaryColor,
-                                  AppTheme.primaryLight,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(30),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor,
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              currentPage == 2
-                                  ? navigationItems[2].activeIcon
-                                  : navigationItems[2].icon,
-                              color: Colors.white,
-                              size: 35,
-                            ),
-                          ),
+                  top: screenHeight * 0.005,
+                  left: screenWidth / 2 - screenWidth * 0.08,
+                  child: GestureDetector(
+                    onTap: () => _onItemTapped(2),
+                    child: Container(
+                      width: screenWidth * 0.16,
+                      height: screenWidth * 0.16,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppTheme.primaryColor, AppTheme.primaryLight],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      );
-                    },
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        currentPage == 2 ? navigationItems[2].activeIcon : navigationItems[2].icon,
+                        color: Colors.white,
+                        size: screenWidth * 0.09,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 
-  Widget _buildNavigationItem(int index) {
+  Widget _buildNavigationItem(int index, double screenWidth, double screenHeight) {
     final item = navigationItems[index];
     final isActive = currentPage == index;
 
     return SizedBox(
-      width: 80,
-      height: 80,
+      width: screenWidth * 0.18,
+      height: screenHeight * 0.09,
       child: InkWell(
         borderRadius: BorderRadius.circular(40),
         onTap: () => _onItemTapped(index),
-        splashColor: AppTheme.primaryColor,
+        splashColor: AppTheme.primaryColor.withOpacity(0.2),
         highlightColor: Colors.transparent,
         child: Center(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeInOut,
-            width: 50,
-            height: 50,
-            alignment: Alignment.center,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              switchInCurve: Curves.easeIn,
-              switchOutCurve: Curves.easeOut,
-              transitionBuilder: (child, animation) {
-                return ScaleTransition(scale: animation, child: child);
-              },
-              child: Icon(
-                isActive ? item.activeIcon : item.icon,
-                key: ValueKey<bool>(isActive),
-                color: isActive ? AppTheme.primaryColor : Colors.grey[600],
-                size: isActive ? 35 : 28,
-              ),
-            ),
+          child: Icon(
+            isActive ? item.activeIcon : item.icon,
+            color: isActive ? AppTheme.primaryColor : Colors.grey[600],
+            size: isActive ? screenWidth * 0.085 : screenWidth * 0.07,
           ),
         ),
       ),
@@ -284,7 +314,7 @@ class NavigatorBarState extends State<NavigatorBar> with TickerProviderStateMixi
   }
 }
 
-// Helper class for navigation items
+// ---------------- Navigation Item Class ----------------
 class NavigationItem {
   final IconData icon;
   final IconData activeIcon;

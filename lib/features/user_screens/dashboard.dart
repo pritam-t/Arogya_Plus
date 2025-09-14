@@ -271,31 +271,6 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-        actions: [
-          // Logo in top right corner
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Icon(
-                Icons.local_hospital,
-                color: AppTheme.primaryColor,
-                size: 24,
-              ),
-            ),
-          ),
-        ],
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         child: Column(

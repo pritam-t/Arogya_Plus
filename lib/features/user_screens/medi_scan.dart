@@ -75,14 +75,7 @@ class _ScanMediView extends StatelessWidget {
       },
       builder: (context, state) {
         return Scaffold(
-          appBar: AppBar(
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Image.asset('assets/images/surface_logo.png', fit: BoxFit.contain, height: 32),
-            ),
-            title: const Text("Scan Medicine", style: TextStyle(fontSize: 22)),
-            centerTitle: true,
-          ),
+
           body: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
