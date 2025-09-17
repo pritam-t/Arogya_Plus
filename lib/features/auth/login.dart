@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../Splash_Screen.dart';
 
 
@@ -21,6 +22,9 @@ class _LoginScreenState extends State<LoginScreen> {
   // State variables
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  final _supabaseAuth = Supabase.instance.client.auth;
+
 
   @override
   void dispose() {
@@ -52,28 +56,52 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // Email login function
-  Future<void> _loginWithEmail() async {
-
+// Email login function using Supabase
+  Future<void> _loginWithEmail() async  {
     final navigator = Navigator.of(context);
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final response = await _supabaseAuth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-    setState(() {
-      _isLoading = false;
-    });
+      final session = response.session;
+      final user = response.user;
 
-    var sharePref = await SharedPreferences.getInstance();
-    sharePref.setBool(SplashScreenState.KEYLOGIN, true);
+      if (user != null) {
+        // Save login state locally
+        var sharePref = await SharedPreferences.getInstance();
+        sharePref.setBool(SplashScreenState.KEYLOGIN, true);
 
-    // Navigate to dashboard
-    navigator.pushReplacementNamed('/navigator-bar');
-
+        // Navigate to dashboard
+        navigator.pushReplacementNamed('/navigator-bar');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login failed. Please try again.'),
+          ),
+        );
+      }
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unexpected error: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override

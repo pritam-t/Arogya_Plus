@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
@@ -81,7 +82,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _signUp() async {
     final navigator = Navigator.of(context);
-    final messenger = ScaffoldMessenger.of(context); // ✅ capture before await
+    final messenger = ScaffoldMessenger.of(context);
 
     if (!_formKey.currentState!.validate()) return;
 
@@ -99,22 +100,45 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+    try {
+      final response = await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        data: {
+          'full_name': _nameController.text.trim(),
+        },
+      );
 
-    if (!mounted) return; // ✅ ensure widget is still in the tree
+      if (response.user != null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Account created! Check your email to confirm.'),
+            backgroundColor: Colors.green,
+          ),
+        );
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Account created successfully! Please log in.'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    navigator.pushReplacementNamed('/profile-setup'); // ✅ use named route
+        navigator.pushReplacementNamed('/profile-setup');
+      }
+    } on AuthException catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Unexpected error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
 

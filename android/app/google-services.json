@@ -12,7 +12,20 @@
           "package_name": "com.example.mediscan_plus"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "35310350315-ugcal5rcb9tdb15o5brl0l0itq5lqji6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mediscan_plus",
+            "certificate_hash": "f6a9d15d6bb5d7bc160794852ea20542c3c59c9b"
+          }
+        },
+        {
+          "client_id": "35310350315-gp4g5tsc99ekccr14qlq0ee2grk2tq3b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCflC19l0HP8dHHQ-qbe5ypc1pDsuJKR24"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "35310350315-gp4g5tsc99ekccr14qlq0ee2grk2tq3b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

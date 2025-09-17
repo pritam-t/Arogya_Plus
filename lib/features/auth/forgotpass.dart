@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({Key? key}) : super(key: key);
@@ -34,6 +35,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   // Send reset email function
+// Send reset email function
   Future<void> _sendResetEmail() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -41,35 +43,63 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        _emailController.text.trim(),
+        redirectTo: 'myapp://reset-password', // must be added in Supabase Auth settings
+      );
 
-    setState(() {
-      _isLoading = false;
-      _isEmailSent = true;
-    });
+      setState(() {
+        _isEmailSent = true;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent!')),
+      );
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unexpected error: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  // Resend email function
+// Resend email function
   Future<void> _resendEmail() async {
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        _emailController.text.trim(),
+        redirectTo: 'myapp://reset-password',
+      );
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reset email sent again!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Reset email sent again!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on AuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +111,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         systemOverlayStyle: SystemUiOverlayStyle.dark,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1F2937)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            final navigator = Navigator.of(context);
+            navigator.pushReplacementNamed('/login');
+          } ,
         ),
       ),
       body: SafeArea(

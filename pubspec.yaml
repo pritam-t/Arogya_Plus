@@ -42,8 +42,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.15.0 # Google mlkit
   camera: ^0.11.2 # Acess to device camera
   provider: ^6.1.5 #Statemanagement thorughout the application
-  firebase_core: ^4.1.0
-  firebase_auth: ^6.0.2
+  google_sign_in: ^7.1.1
 
   # The following adds the Cupertino Icons font to your application.
   cupertino_icons: ^1.0.8
@@ -52,6 +51,7 @@ dependencies:
   flutter_bloc: ^9.1.1
   animated_text_kit: ^4.2.3
   flutter_dotenv: ^6.0.0
+  supabase_flutter: ^2.10.1
 
 flutter_icons:
   android: true

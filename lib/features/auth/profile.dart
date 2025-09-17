@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../../data/local/db_helper.dart';
 
 class ProfileSetupScreen extends StatefulWidget {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../data/local/db_helper.dart';
-import '../../main.dart';
 
 class UserSetting_Screen extends StatefulWidget {
   const UserSetting_Screen({super.key});

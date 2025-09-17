@@ -1,11 +1,10 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
+ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Provider/UserProfileProvider.dart';
 import 'Splash_Screen.dart';
 import 'features/auth/profile.dart';
@@ -13,10 +12,13 @@ import 'features/auth/signup.dart';
 import 'features/back_screens/navigation.dart';
 import 'features/back_screens/nearby_doc.dart';
 
+
+const supabaseUrl = 'https://hrlgvxmjhelbourfeojd.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhybGd2eG1qaGVsYm91cmZlb2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwMjkzMzQsImV4cCI6MjA3MzYwNTMzNH0.v5JfCI9CqtrY6F2kxUuL0yAOplKPn22aWMUpHWoTZaQ';
+
 Future<void> main() async{
-  // await dotenv.load(fileName: "API.env");
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
   runApp(const MyApp());
 }
 
