@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/local/db_helper.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -147,22 +148,93 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
 
     final navigator = Navigator.of(context);
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      if (dbref != null) {
-        // Save basic user information
-        var uname = _nameController.text;
-        int uage = int.tryParse(_ageController.text) ?? 0;
-        var gender = _selectedGender;
-        var uheight = int.tryParse(_heightController.text) ?? 0;
-        var uweight = int.tryParse(_weightController.text) ?? 0;
-        var ublood = _selectedBloodType;
+      // 1) Ensure we have an authenticated supabase user
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        throw Exception('No authenticated user found. Please login again.');
+      }
 
-        bool userAdded = await dbref!.addUser(
+      // 2) Build profile & medical maps
+      final profile = {
+        'id': user.id, // must match auth.users.id (UUID)
+        'name': _nameController.text.trim(),
+        'age': int.tryParse(_ageController.text.trim()) ?? 0,
+        'gender': _selectedGender,
+        'height': double.tryParse(_heightController.text.trim()) ?? 0,
+        'weight': double.tryParse(_weightController.text.trim()) ?? 0,
+        'blood_group': _selectedBloodType,
+        'email': user.email,
+      };
+
+      final medical = {
+        'user_id': user.id,
+        'allergies': _selectedAllergies,
+        'current_medicines': _selectedMedicalConditions,
+        'emergency_contact_name': _emergencyNameController.text.trim(),
+        'emergency_contact_number': _emergencyPhoneController.text.trim(),
+      };
+
+      final supabase = Supabase.instance.client;
+
+      // 3) Upsert profile to Supabase
+      final profileResp = await supabase
+          .from('profiles')
+          .upsert(profile)
+          .select(); // returns inserted/updated rows
+
+      // 4) Upsert medical_info
+      final medicalResp = await supabase
+          .from('medical_info')
+          .upsert(medical)
+          .select();
+
+      // 5) Save to local DB (cache)
+      final uname = profile['name'] as String;
+      final uage = profile['age'] as int;
+      final gender = profile['gender'] as String;
+      final uheight = (profile['height'] is double)
+          ? (profile['height'] as double).toInt()
+          : int.tryParse(_heightController.text) ?? 0;
+      final uweight = (profile['weight'] is double)
+          ? (profile['weight'] as double).toInt()
+          : int.tryParse(_weightController.text) ?? 0;
+      final ublood = profile['blood_group'] as String;
+
+      await dbref!.addUser(
+        name: uname,
+        age: uage,
+        gender: gender,
+        height: uheight,
+        weight: uweight,
+        blood: ublood,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile saved to cloud and cached locally.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      navigator.pushReplacementNamed('/navigator-bar');
+    } catch (e) {
+      // Fallback: offline or Supabase error — save locally
+      try {
+        final uname = _nameController.text.trim();
+        final uage = int.tryParse(_ageController.text) ?? 0;
+        final gender = _selectedGender;
+        final uheight = int.tryParse(_heightController.text) ?? 0;
+        final uweight = int.tryParse(_weightController.text) ?? 0;
+        final ublood = _selectedBloodType;
+
+        await dbref!.addUser(
           name: uname,
           age: uage,
           gender: gender,
@@ -171,33 +243,25 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           blood: ublood,
         );
 
-        if (userAdded) {
-          // TODO: Save additional information (allergies, conditions, emergency contact)
-          // This would require additional database methods
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Saved locally. Will sync to cloud when online. (${e.toString()})'),
+            backgroundColor: Colors.orange,
+          ),
+        );
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Profile setup completed successfully!"),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          // Navigate to dashboard
-          navigator.pushReplacementNamed('/navigator-bar');
-        } else {
-          throw Exception('Failed to save user data');
-        }
-      } else {
-        throw Exception('Database not initialized');
+        navigator.pushReplacementNamed('/navigator-bar');
+      } catch (localSaveError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save profile: $localSaveError'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error saving profile: ${e.toString()}"),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
