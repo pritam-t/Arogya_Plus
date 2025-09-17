@@ -35,7 +35,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool _privacyAgreed = false;
 
   // Options for dropdowns and selections
-  final List<String> _genderOptions = ['Male', 'Female', 'Other', 'Prefer not to say'];
+  final List<String> _genderOptions = ['Male', 'Female'];
   final List<String> _bloodTypeOptions = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
   final List<String> _commonAllergies = [
     'Peanuts', 'Tree nuts', 'Shellfish', 'Fish', 'Eggs', 'Milk', 'Soy', 'Wheat',
