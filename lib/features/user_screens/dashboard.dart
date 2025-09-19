@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../data/local/db_helper.dart';
 import '../../main.dart';
 import '../back_screens/navigation.dart';
+import 'package:intl/intl.dart';
+
 
 class UserDashBoard extends StatefulWidget {
   const UserDashBoard({super.key});
@@ -11,6 +13,8 @@ class UserDashBoard extends StatefulWidget {
 }
 
 class _UserDashboardScreenState extends State<UserDashBoard> {
+
+
 
   // Controllers for add medication dialog
   final TextEditingController _medicationNameController = TextEditingController();
@@ -288,8 +292,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
             _buildCompactMedicationsSection(),
             const SizedBox(height: AppTheme.spacingL),
 
-            // Upcoming Appointments
-            _buildAppointmentsSection(),
+            _buildAppointmentsSection(appointments),
             const SizedBox(height: AppTheme.spacingL),
 
             // Nearby Doctors Quick Access
@@ -411,21 +414,9 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
           ),
         ),
         const SizedBox(height: AppTheme.spacingM),
-        Row(
-          children: [
-            Expanded(child: _buildOverviewCard("12", "Meds Taken", "This Week", Icons.medication, AppTheme.successColor)),
-            const SizedBox(width: AppTheme.spacingM),
-            Expanded(child: _buildOverviewCard("8", "AI Assists", "Used", Icons.smart_toy, AppTheme.primaryColor)),
-          ],
-        ),
+        _buildOverviewCard("12", "Meds Taken", "This Week", Icons.medication, AppTheme.successColor),
         const SizedBox(height: AppTheme.spacingM),
-        Row(
-          children: [
-            Expanded(child: _buildOverviewCard("15", "Scans Done", "Total", Icons.qr_code_scanner, AppTheme.warningColor)),
-            const SizedBox(width: AppTheme.spacingM),
-            Expanded(child: _buildOverviewCard("2", "Fever Alert", "Days Ago", Icons.thermostat, AppTheme.errorColor)),
-          ],
-        ),
+        _buildViewDetailsButton(),
       ],
     );
   }
@@ -468,6 +459,46 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildViewDetailsButton() {
+    final navigatorBarState = context.findAncestorStateOfType<NavigatorBarState>();
+
+    return Container(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () {
+          navigatorBarState?.goToLogs();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.successColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
+          ),
+          elevation: 2,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.visibility,
+              size: 20,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'View Details',
+              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -636,34 +667,40 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-  Widget _buildAppointmentsSection() {
+  Widget _buildAppointmentsSection(List<Map<String, dynamic>> appointments) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Upcoming Appointments",
-              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+
+        const SizedBox(height: AppTheme.spacingM),
+
+        appointments.isEmpty
+            ? Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              "No upcoming appointments",
+              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textHint,
               ),
             ),
-            TextButton(
-              onPressed: () {
-                // TODO: Navigate to all appointments
-              },
-              child: const Text("View All"),
-            ),
-          ],
+          ),
+        )
+            : Column(
+          children: appointments
+              .map((appointment) => _buildAppointmentCard(appointment))
+              .toList(),
         ),
-        const SizedBox(height: AppTheme.spacingM),
-        ...appointments.map((appointment) => _buildAppointmentCard(appointment)),
       ],
     );
   }
 
   Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
+    // Convert millisecondsSinceEpoch -> readable date
+    DateTime date =
+    DateTime.fromMillisecondsSinceEpoch(appointment['date'] as int);
+    String formattedDate = DateFormat("dd MMM yyyy").format(date);
+
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
       padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -682,6 +719,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
       ),
       child: Row(
         children: [
+          // Doctor Icon
           Container(
             width: 50,
             height: 50,
@@ -696,19 +734,21 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
             ),
           ),
           const SizedBox(width: AppTheme.spacingM),
+
+          // Appointment Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  appointment['doctor'],
+                  appointment['doctor'] ?? "Unknown Doctor",
                   style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  appointment['specialty'],
+                  appointment['specialty'] ?? "Specialty",
                   style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                     color: AppTheme.textHint,
                   ),
@@ -716,10 +756,11 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 14, color: AppTheme.textHint),
+                    Icon(Icons.calendar_today,
+                        size: 14, color: AppTheme.textHint),
                     const SizedBox(width: 4),
                     Text(
-                      "${appointment['date']} • ${appointment['time']}",
+                      "$formattedDate • ${appointment['time']}",
                       style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
@@ -729,6 +770,8 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
               ],
             ),
           ),
+
+          // Appointment Type (badge)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
@@ -736,7 +779,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              appointment['type'],
+              appointment['type'] ?? "In-person",
               style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                 color: AppTheme.warningColor,
                 fontWeight: FontWeight.w500,

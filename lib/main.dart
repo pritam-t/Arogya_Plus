@@ -11,6 +11,7 @@ import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
 import 'features/back_screens/navigation.dart';
 import 'features/back_screens/nearby_doc.dart';
+import 'features/user_screens/user_logs.dart';
 
 
 const supabaseUrl = 'https://hrlgvxmjhelbourfeojd.supabase.co';
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/forgotpass': (context) => const ForgotPasswordScreen(),
         '/signup': (context) => const SignUpScreen(),
+        '/user_logs': (context) => const User_Logs_Screen(),
 
         '/near-doc': (context) =>const NearbyDoc_Screen(),
       },

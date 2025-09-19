@@ -234,7 +234,8 @@ class DBHelper {
     required int date, // store as millisecondsSinceEpoch
     required String time, // store as formatted text '14:30'
     required String type,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.insert(APPOINTMENTS_TABLE, {
       COL_APPOINT_DOCTOR: doctor,
@@ -260,7 +261,8 @@ class DBHelper {
     required String specialty,
     required int date,
     required String time,
-  }) async  {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.update(
       APPOINTMENTS_TABLE,

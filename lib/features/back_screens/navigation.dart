@@ -178,6 +178,12 @@ class NavigatorBarState extends State<NavigatorBar> {
     });
   }
 
+  void goToLogs() {
+    setState(() {
+      currentPage = 3; // User Logs index
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;

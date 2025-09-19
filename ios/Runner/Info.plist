@@ -3,6 +3,12 @@
 <plist version="1.0">
 <dict>
 
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>We need your location to show nearby doctors.</string>
+
+<key>NSLocationAlwaysUsageDescription</key>
+<string>We need your location to show nearby doctors.</string>
+
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
