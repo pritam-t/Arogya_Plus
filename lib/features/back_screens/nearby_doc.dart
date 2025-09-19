@@ -7,7 +7,8 @@ import 'package:url_launcher/url_launcher_string.dart';
 import '../../main.dart';
 import 'doctor_detail_screen.dart';
 
-class NearbyDoc_Screen extends StatefulWidget {
+class NearbyDoc_Screen extends StatefulWidget
+{
   const NearbyDoc_Screen({super.key});
 
   @override

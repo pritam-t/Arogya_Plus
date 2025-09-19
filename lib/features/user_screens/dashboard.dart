@@ -14,8 +14,6 @@ class UserDashBoard extends StatefulWidget {
 
 class _UserDashboardScreenState extends State<UserDashBoard> {
 
-
-
   // Controllers for add medication dialog
   final TextEditingController _medicationNameController = TextEditingController();
   final TextEditingController _dosageController = TextEditingController();
@@ -101,12 +99,12 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
   void deleteMedication(int index) async{
     final medId = medications[index][DBHelper.COL_MED_ID];
     final deleted = await DBHelper.getInstance.deleteMedication(
-      id: medId
+        id: medId
     );
     if(deleted)
-      {
-        _loadMedicationsFromDB();
-      }
+    {
+      _loadMedicationsFromDB();
+    }
   }
 
   void _showAddMedicationDialog() {
@@ -305,11 +303,14 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
   }
 
   Widget _buildUserProfile() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
+      padding: EdgeInsets.all(screenWidth * 0.045),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.borderRadiusL),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -319,84 +320,170 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.7)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Top row with avatar and user info
+          Row(
+            children: [
+              // Simple Avatar
+              Container(
+                width: screenWidth * 0.16,
+                height: screenWidth * 0.16,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor,
+                      AppTheme.primaryLight,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(screenWidth * 0.08),
+                ),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: screenWidth * 0.07,
+                ),
               ),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Icon(
-              Icons.person,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: AppTheme.spacingM),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  userinfo == null ? '' : userinfo![DBHelper.COL_NAME],
-                  style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Age: ${userinfo == null ? '' : userinfo![DBHelper.COL_AGE]}',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textHint,
-                  ),
-                ),
-                SizedBox(width: 8), // Add space between the two Text widgets
-                Text(
-                  'Gender: ${userinfo == null ? '' : userinfo![DBHelper.COL_GENDER]}',
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textHint,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
+
+              SizedBox(width: screenWidth * 0.04),
+
+              // User info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildConditionChip("Asthma"),
-                    _buildConditionChip("High BP"),
+                    Text(
+                      userinfo == null ? 'Loading...' : userinfo![DBHelper.COL_NAME],
+                      style: TextStyle(
+                        fontSize: screenWidth * 0.055,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    SizedBox(height: screenHeight * 0.008),
+
+                    // Age and Gender
+                    Row(
+                      children: [
+                        _buildInfoChip(
+                          icon: Icons.cake_outlined,
+                          text: '${userinfo == null ? '' : userinfo![DBHelper.COL_AGE]} years',
+                          screenWidth: screenWidth,
+                        ),
+                        SizedBox(width: screenWidth * 0.03),
+                        _buildInfoChip(
+                          icon: userinfo != null && userinfo![DBHelper.COL_GENDER] == 'Male'
+                              ? Icons.male : Icons.female,
+                          text: '${userinfo == null ? '' : userinfo![DBHelper.COL_GENDER]}',
+                          screenWidth: screenWidth,
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
+              ),
+            ],
+          ),
+
+          SizedBox(height: screenHeight * 0.02),
+
+          // Simple divider
+          Container(
+            height: 1,
+            width: double.infinity,
+            color: AppTheme.borderColor.withOpacity(0.5),
+          ),
+
+          SizedBox(height: screenHeight * 0.02),
+
+          // Conditions section
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Health Conditions',
+              style: TextStyle(
+                fontSize: screenWidth * 0.04,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textSecondary,
+              ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () {
-              // TODO: Navigate to edit profile
-            },
+
+          SizedBox(height: screenHeight * 0.012),
+
+          // Simple condition chips
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: screenWidth * 0.025,
+              runSpacing: screenHeight * 0.01,
+              children: [
+                _buildSimpleConditionChip("Asthma", screenWidth),
+                _buildSimpleConditionChip("High BP", screenWidth),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildConditionChip(String condition) {
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String text,
+    required double screenWidth,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.025,
+        vertical: screenWidth * 0.015,
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.borderColor.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: AppTheme.textSecondary,
+            size: screenWidth * 0.035,
+          ),
+          SizedBox(width: screenWidth * 0.015),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: screenWidth * 0.032,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleConditionChip(String condition, double screenWidth) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.03,
+        vertical: screenWidth * 0.02,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.primaryColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         condition,
-        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+        style: TextStyle(
           color: AppTheme.primaryColor,
+          fontSize: screenWidth * 0.035,
           fontWeight: FontWeight.w500,
         ),
       ),
@@ -696,97 +783,130 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
   }
 
   Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
-    // Convert millisecondsSinceEpoch -> readable date
     DateTime date =
     DateTime.fromMillisecondsSinceEpoch(appointment['date'] as int);
     String formattedDate = DateFormat("dd MMM yyyy").format(date);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
-        border: Border.all(color: AppTheme.borderColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Doctor Icon
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(25),
+    return GestureDetector(
+      onLongPress: () async {
+        bool? confirmDelete = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Delete Appointment"),
+            content: Text(
+              "Are you sure you want to delete the appointment ? "
             ),
-            child: Icon(
-              Icons.medical_services_outlined,
-              color: AppTheme.primaryColor,
-              size: 24,
-            ),
+            actions: [
+              TextButton(
+                child: const Text("Cancel"),
+                onPressed: () => Navigator.pop(context, false),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.errorColor,
+                ),
+                child: const Text("Delete"),
+                onPressed: () => Navigator.pop(context, true),
+              ),
+            ],
           ),
-          const SizedBox(width: AppTheme.spacingM),
+        );
 
-          // Appointment Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  appointment['doctor'] ?? "Unknown Doctor",
-                  style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  appointment['specialty'] ?? "Specialty",
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textHint,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today,
-                        size: 14, color: AppTheme.textHint),
-                    const SizedBox(width: 4),
-                    Text(
-                      "$formattedDate • ${appointment['time']}",
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+        if (confirmDelete == true) {
+          // delete from DB
+          await DBHelper.getInstance.deleteAppointment(id: appointment['id']);
+          // refresh UI
+          (context as Element).markNeedsBuild();
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
+        padding: const EdgeInsets.all(AppTheme.spacingM),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
+          border: Border.all(color: AppTheme.borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
             ),
-          ),
-
-          // Appointment Type (badge)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.warningColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              appointment['type'] ?? "In-person",
-              style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                color: AppTheme.warningColor,
-                fontWeight: FontWeight.w500,
+          ],
+        ),
+        child: Row(
+          children: [
+            // Doctor Icon
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Icon(
+                Icons.medical_services_outlined,
+                color: AppTheme.primaryColor,
+                size: 24,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: AppTheme.spacingM),
+
+            // Appointment Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    appointment['doctor'] ?? "Unknown Doctor",
+                    style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    appointment['specialty'] ?? "Specialty",
+                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textHint,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today,
+                          size: 14, color: AppTheme.textHint),
+                      const SizedBox(width: 4),
+                      Text(
+                        "$formattedDate • ${appointment['time']}",
+                        style:
+                        AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Appointment Type (badge)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.warningColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                appointment['type'] ?? "In-person",
+                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                  color: AppTheme.warningColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
