@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'dart:io';
+import '../../Provider/Dashboard/DashboardProvider.dart';
 import '../../data/local/db_helper.dart';
 
 class UserSetting_Screen extends StatefulWidget {
@@ -160,6 +162,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
             id: userinfo![DBHelper.COL_ID],
             profileImage: savedPath, // Now this is a permanent path
           );
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          loadUserData();
 
           _showSnackBar("Profile picture updated successfully!");
         } else {
@@ -227,6 +231,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
         isEditing = false;
       });
 
+      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
       await loadUserData();
       _showSnackBar("Profile updated successfully!");
     } catch (e) {
@@ -243,6 +248,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     );
     if (result != null && result.isNotEmpty) {
       await dbref.addHealthIssue(healthIssue: result);
+      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
       loadUserData();
       _showSnackBar("Health issue added successfully!");
     }
@@ -250,6 +256,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   Future<void> _deleteHealthIssue(int id) async {
     await dbref.deleteHealthIssue(id: id);
+    Provider.of<DashboardProvider>(context, listen: false).loadAllData();
     loadUserData();
     _showSnackBar("Health issue removed");
   }
@@ -262,6 +269,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
         allergyName: result['name'],
         severity: result['severity'],
       );
+      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
       loadUserData();
       _showSnackBar("Allergy added successfully!");
     }
@@ -269,11 +277,11 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   Future<void> _deleteAllergy(int id) async {
     await dbref.deleteAllergy(id: id);
+    Provider.of<DashboardProvider>(context, listen: false).loadAllData();
     loadUserData();
     _showSnackBar("Allergy removed");
   }
 
-  // Emergency Contact Methods
   Future<void> _addEmergencyContact() async {
     final result = await _showEmergencyContactDialog();
     if (result != null) {
@@ -283,6 +291,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
         relationship: result['relationship'],
         isPrimary: result['isPrimary'],
       );
+      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
       loadUserData();
       _showSnackBar("Emergency contact added successfully!");
     }
@@ -298,6 +307,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
         relationship: result['relationship'],
         isPrimary: result['isPrimary'],
       );
+      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+
       loadUserData();
       _showSnackBar("Emergency contact updated successfully!");
     }
@@ -305,6 +316,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   Future<void> _deleteEmergencyContact(int id) async {
     await dbref.deleteEmergencyContact(id: id);
+    Provider.of<DashboardProvider>(context, listen: false).loadAllData();
     loadUserData();
     _showSnackBar("Emergency contact removed");
   }
@@ -314,7 +326,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     required String title,
     required String hintText,
     String? initialValue,
-  }) async {
+  }) async
+  {
     final controller = TextEditingController(text: initialValue);
     return showDialog<String>(
       context: context,
@@ -385,7 +398,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   Future<Map<String, dynamic>?> _showEmergencyContactDialog({
     Map<String, dynamic>? contact,
-  }) async {
+  }) async
+  {
     final nameController = TextEditingController(
         text: contact?[DBHelper.COL_EMERGENCY_NAME] ?? '');
     final phoneController = TextEditingController(
@@ -563,32 +577,34 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : userinfo == null
-          ? _buildNoUserFoundWidget()
-          : FadeTransition(
-        opacity: _fadeController,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
-          child: Column(
-            children: [
-              _buildProfileHeader(),
-              const SizedBox(height: 20),
-              _buildPersonalInfoCard(),
-              const SizedBox(height: 20),
-              _buildHealthInfoCard(),
-              const SizedBox(height: 20),
-              _buildHealthIssuesCard(),
-              const SizedBox(height: 20),
-              _buildAllergiesCard(),
-              const SizedBox(height: 20),
-              _buildEmergencyContactsCard(),
-              const SizedBox(height: 30),
-              _buildActionButtons(),
-            ],
+    return SafeArea(
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : userinfo == null
+            ? _buildNoUserFoundWidget()
+            : FadeTransition(
+          opacity: _fadeController,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 50, 20, 30),
+            child: Column(
+              children: [
+                _buildProfileHeader(),
+                const SizedBox(height: 20),
+                _buildPersonalInfoCard(),
+                const SizedBox(height: 20),
+                _buildHealthInfoCard(),
+                const SizedBox(height: 20),
+                _buildHealthIssuesCard(),
+                const SizedBox(height: 20),
+                _buildAllergiesCard(),
+                const SizedBox(height: 20),
+                _buildEmergencyContactsCard(),
+                const SizedBox(height: 30),
+                _buildActionButtons(),
+              ],
+            ),
           ),
         ),
       ),
@@ -800,7 +816,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     required String title,
     required VoidCallback onTap,
     Color? color,
-  }) {
+  })
+  {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
@@ -879,7 +896,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     required List<Map<String, dynamic>> items,
     required VoidCallback onAdd,
     required Widget Function(Map<String, dynamic>) itemBuilder,
-  }) {
+  })
+  {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1140,7 +1158,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
       bool editable, [
         TextInputType? keyboardType,
         String? suffix,
-      ]) {
+      ])
+  {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(

@@ -279,7 +279,7 @@ class UserDashBoard extends StatelessWidget {
               // Top row with avatar and user info
               Row(
                 children: [
-                  // Simple Avatar
+                  // Avatar
                   Container(
                     width: screenWidth * 0.16,
                     height: screenWidth * 0.16,
@@ -294,7 +294,7 @@ class UserDashBoard extends StatelessWidget {
                       ),
                       borderRadius: BorderRadius.circular(screenWidth * 0.08),
                     ),
-                    child:_buildProfileImage(screenWidth),
+                    child: _buildProfileImage(screenWidth),
                   ),
 
                   SizedBox(width: screenWidth * 0.04),
@@ -321,14 +321,14 @@ class UserDashBoard extends StatelessWidget {
                           children: [
                             _buildInfoChip(
                               icon: Icons.cake_outlined,
-                              text: '${userinfo == null ? '' : userinfo[DBHelper.COL_AGE]} years',
+                              text: '${userinfo?[DBHelper.COL_AGE] ?? ''} years',
                               screenWidth: screenWidth,
                             ),
                             SizedBox(width: screenWidth * 0.03),
                             _buildInfoChip(
-                              icon: userinfo != null && userinfo[DBHelper.COL_GENDER] == 'Male'
+                              icon: userinfo?[DBHelper.COL_GENDER] == 'Male'
                                   ? Icons.male : Icons.female,
-                              text: '${userinfo == null ? '' : userinfo[DBHelper.COL_GENDER]}',
+                              text: '${userinfo?[DBHelper.COL_GENDER] ?? ''}',
                               screenWidth: screenWidth,
                             ),
                           ],
@@ -341,7 +341,7 @@ class UserDashBoard extends StatelessWidget {
 
               SizedBox(height: screenHeight * 0.02),
 
-              // Simple divider
+              // Divider
               Container(
                 height: 1,
                 width: double.infinity,
@@ -350,11 +350,11 @@ class UserDashBoard extends StatelessWidget {
 
               SizedBox(height: screenHeight * 0.02),
 
-              // Conditions section
+              // Quick Stats / Other Info
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Health Conditions',
+                  'Quick Stats',
                   style: TextStyle(
                     fontSize: screenWidth * 0.04,
                     fontWeight: FontWeight.w600,
@@ -365,38 +365,47 @@ class UserDashBoard extends StatelessWidget {
 
               SizedBox(height: screenHeight * 0.012),
 
-              // Simple condition chips
               Align(
                 alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: screenWidth * 0.025,
-                  runSpacing: screenHeight * 0.01,
-                  children: [
-                    // Conditions
-                    if (userinfo?['conditions'] != null &&
-                        userinfo!['conditions'].toString().isNotEmpty)
-                      ...(userinfo!['conditions'] as String)
-                          .split(",")
-                          .map((c) => _buildSimpleConditionChip(c.trim(), screenWidth))
-                          .toList(),
+                child: Consumer<DashboardProvider>(
+                  builder: (context, provider, child) {
+                    final chips = <Widget>[];
 
-                    // Allergies
-                    if (userinfo?['allergies'] != null &&
-                        userinfo!['allergies'].toString().isNotEmpty)
-                      ...(userinfo!['allergies'] as String)
-                          .split(",")
-                          .map((a) => _buildSimpleConditionChip("Allergy: ${a.trim()}", screenWidth))
-                          .toList(),
+                    // Medications taken count
+                    final medsTaken = provider.medications
+                        .where((m) => m[DBHelper.COL_MED_IS_TAKEN] == 1)
+                        .length;
+                    chips.add(_buildSimpleConditionChip(
+                        "Meds Taken: $medsTaken", screenWidth));
 
-                    // Fallback when both empty
-                    if ((userinfo?['conditions'] == null ||
-                        userinfo!['conditions'].toString().isEmpty) &&
-                        (userinfo?['allergies'] == null ||
-                            userinfo!['allergies'].toString().isEmpty))
-                      _buildSimpleConditionChip("No conditions", screenWidth),
-                  ],
+                    // Upcoming appointment
+                    if (provider.appointments.isNotEmpty) {
+                      final nextAppointment = provider.appointments.first;
+                      chips.add(_buildSimpleConditionChip(
+                          "Next Appointment: ${nextAppointment[DBHelper.COL_APPOINT_DOCTOR]}",
+                          screenWidth));
+                    }
+
+                    // Primary Emergency Contact
+                    final primaryContact = provider.userinfo != null
+                        ? provider.userinfo![DBHelper.COL_EMERGENCY_NAME]
+                        : null;
+                    if (primaryContact != null) {
+                      chips.add(_buildSimpleConditionChip(
+                          "Emergency Contact: $primaryContact", screenWidth));
+                    }
+
+                    if (chips.isEmpty) {
+                      chips.add(_buildSimpleConditionChip("No quick stats", screenWidth));
+                    }
+
+                    return Wrap(
+                      spacing: screenWidth * 0.025,
+                      runSpacing: screenHeight * 0.01,
+                      children: chips,
+                    );
+                  },
                 ),
-
               ),
             ],
           ),
@@ -512,9 +521,13 @@ class UserDashBoard extends StatelessWidget {
   Widget _buildHealthOverview() {
     return Consumer<DashboardProvider>(
       builder: (context, provider, child) {
+        // Medications taken count
         final medsTaken = provider.medications
             .where((m) => m[DBHelper.COL_MED_IS_TAKEN] == 1)
             .length;
+
+        final conditionsCount = provider.healthConditions.length;
+        final allergiesCount = provider.allergies.length;
 
         return Container(
           padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -540,14 +553,38 @@ class UserDashBoard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),
+
+              // Medications taken
               _buildOverviewCard(
                 medsTaken.toString(),
                 "Meds Taken",
-                "This Week", // you can later calculate by filtering by date
+                "This Week",
                 Icons.medication,
                 AppTheme.successColor,
               ),
               const SizedBox(height: AppTheme.spacingM),
+
+              // Health conditions
+              _buildOverviewCard(
+                conditionsCount.toString(),
+                "Health Conditions",
+                "Added by you",
+                Icons.health_and_safety,
+                AppTheme.warningColor,
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+
+              // Allergies
+              _buildOverviewCard(
+                allergiesCount.toString(),
+                "Allergies",
+                "Added by you",
+                Icons.warning_amber_rounded,
+                AppTheme.errorColor,
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+
+              // View Details Button
               _buildViewDetailsButton(context),
             ],
           ),
