@@ -1,116 +1,60 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../Provider/Dashboard/DashboardProvider.dart';
 import '../../data/local/db_helper.dart';
 import '../../main.dart';
 import '../back_screens/navigation.dart';
 import 'package:intl/intl.dart';
 
-
-class UserDashBoard extends StatefulWidget {
+class UserDashBoard extends StatelessWidget {
   const UserDashBoard({super.key});
 
-  @override
-  State<UserDashBoard> createState() => _UserDashboardScreenState();
-}
+  void _addMedication(BuildContext context, DashboardProvider provider,
+      TextEditingController nameController,
+      TextEditingController dosageController,
+      TextEditingController conditionController,
+      TimeOfDay selectedTime) async {
 
-class _UserDashboardScreenState extends State<UserDashBoard> {
-
-  // Controllers for add medication dialog
-  final TextEditingController _medicationNameController = TextEditingController();
-  final TextEditingController _dosageController = TextEditingController();
-  final TextEditingController _conditionController = TextEditingController();
-  TimeOfDay _selectedTime = TimeOfDay.now();
-
-  final DBHelper dbref = DBHelper.getInstance;
-
-  Map<String, dynamic>? userinfo;
-
-  List<Map<String, dynamic>> medications = [ ];
-
-  List<Map<String, dynamic>> appointments = [ ];
-
-  Future<void> getAll() async {
-    try {
-      final users = await dbref.getUsers();
-      final meds = await dbref.getAllMedications();
-      final appoints = await dbref.getAllAppointments();
-
-      setState(() {
-        userinfo = users.isNotEmpty ? users.first : null;
-        medications = meds;
-        appointments = appoints;
-      });
-    } catch (e) {
-      print("Error loading data: $e");
-    }
-  }
-
-  Future<void> _loadMedicationsFromDB() async {
-    final data = await DBHelper.getInstance.getAllMedications();
-    setState(() {
-      medications = data;
-    });
-  }
-
-  void toggleMedicationTaken(int index) async {
-    final med = medications[index];
-    final updated = await DBHelper.getInstance.updateMedication(
-      id: med[DBHelper.COL_MED_ID],
-      name: med[DBHelper.COL_MED_NAME],
-      dosage: med[DBHelper.COL_MED_DOSAGE],
-      time: med[DBHelper.COL_MED_TIME],
-      isTaken: !(med[DBHelper.COL_MED_IS_TAKEN] == 1 || med[DBHelper.COL_MED_IS_TAKEN] == true),
-    );
-    if(updated) _loadMedicationsFromDB();
-  }
-
-  void _addMedication() async {
-    final String dosage = _dosageController.text.isNotEmpty && _conditionController.text.isNotEmpty
-        ? 'Dosage: ${_dosageController.text}, Condition: ${_conditionController.text}'
-        : _dosageController.text.isNotEmpty ? 'Dosage: ${_dosageController.text}' : _conditionController.text.isNotEmpty
-        ? 'Condition: ${_conditionController.text}' : '';
+    final String dosage = dosageController.text.isNotEmpty && conditionController.text.isNotEmpty
+        ? 'Dosage: ${dosageController.text}, Condition: ${conditionController.text}'
+        : dosageController.text.isNotEmpty ? 'Dosage: ${dosageController.text}' : conditionController.text.isNotEmpty
+        ? 'Condition: ${conditionController.text}' : '';
 
     final now = DateTime.now();
     final medicationTime = DateTime(
       now.year,
       now.month,
       now.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
+      selectedTime.hour,
+      selectedTime.minute,
     );
 
-    if (medications.any((m) => m[DBHelper.COL_MED_NAME] == _medicationNameController.text.trim())) {
+    // Check for duplicates
+    if (provider.medications.any((m) => m[DBHelper.COL_MED_NAME] == nameController.text.trim())) {
       return;
     }
-    final added = await DBHelper.getInstance.addMedication(
-      name: _medicationNameController.text,
+
+    await provider.addMedication(
+      name: nameController.text,
       dosage: dosage,
       time: medicationTime.millisecondsSinceEpoch,
-      isTaken: false,
     );
 
-    if(added){
-      _clearDialogFields();
-      _loadMedicationsFromDB();
-      getAll();
-
-    }
+    _clearDialogFields(nameController, dosageController, conditionController);
   }
 
-  void deleteMedication(int index) async{
-    final medId = medications[index][DBHelper.COL_MED_ID];
-    final deleted = await DBHelper.getInstance.deleteMedication(
-        id: medId
-    );
-    if(deleted)
-    {
-      _loadMedicationsFromDB();
-    }
-  }
+  void _showAddMedicationDialog(BuildContext context) {
+    // Create controllers locally for the dialog
+    final medicationNameController = TextEditingController();
+    final dosageController = TextEditingController();
+    final conditionController = TextEditingController();
+    TimeOfDay selectedTime = TimeOfDay.now();
 
-  void _showAddMedicationDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
+      builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -129,7 +73,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
-                      controller: _medicationNameController,
+                      controller: medicationNameController,
                       decoration: InputDecoration(
                         labelText: 'Medication Name',
                         prefixIcon: Icon(Icons.medical_services, color: AppTheme.primaryColor),
@@ -144,7 +88,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: _dosageController,
+                      controller: dosageController,
                       decoration: InputDecoration(
                         labelText: 'Dosage (e.g., 500mg)',
                         prefixIcon: Icon(Icons.colorize, color: AppTheme.primaryColor),
@@ -159,7 +103,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                     ),
                     const SizedBox(height: 16),
                     TextField(
-                      controller: _conditionController,
+                      controller: conditionController,
                       decoration: InputDecoration(
                         labelText: 'For Condition (e.g., Fever)',
                         prefixIcon: Icon(Icons.healing, color: AppTheme.primaryColor),
@@ -181,16 +125,16 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                       child: ListTile(
                         leading: Icon(Icons.access_time, color: AppTheme.primaryColor),
                         title: const Text('Reminder Time'),
-                        subtitle: Text(_selectedTime.format(context)),
+                        subtitle: Text(selectedTime.format(context)),
                         trailing: Icon(Icons.keyboard_arrow_right, color: AppTheme.textHint),
                         onTap: () async {
                           final TimeOfDay? picked = await showTimePicker(
                             context: context,
-                            initialTime: _selectedTime,
+                            initialTime: selectedTime,
                           );
                           if (picked != null) {
                             setDialogState(() {
-                              _selectedTime = picked;
+                              selectedTime = picked;
                             });
                           }
                         },
@@ -203,35 +147,43 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    _clearDialogFields();
+                    _clearDialogFields(medicationNameController, dosageController, conditionController);
                   },
                   child: Text('Cancel', style: TextStyle(color: AppTheme.textHint)),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_medicationNameController.text.isNotEmpty) {
-                      _addMedication();
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                Consumer<DashboardProvider>(
+                  builder: (context, provider, child) => ElevatedButton(
+                    onPressed: () {
+                      if (medicationNameController.text.isNotEmpty) {
+                        _addMedication(context, provider, medicationNameController,
+                            dosageController, conditionController, selectedTime);
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
+                    child: const Text('Add Reminder'),
                   ),
-                  child: const Text('Add Reminder'),
                 ),
               ],
             );
           },
         );
       },
-    );
+    ).then((_) {
+      // Dispose controllers when dialog is closed
+      medicationNameController.dispose();
+      dosageController.dispose();
+      conditionController.dispose();
+    });
   }
 
-  void _confirmDeleteMedication(int index) {
+  void _confirmDeleteMedication(BuildContext context, int index) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -239,199 +191,244 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
         content: const Text('Are you sure you want to delete this medication?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(), // Cancel
+            onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () {
-              deleteMedication(index); // Delete logic
-              Navigator.of(context).pop(); // Close dialog
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+          Consumer<DashboardProvider>(
+            builder: (context, provider, child) => TextButton(
+              onPressed: () {
+                provider.deleteMedication(index);
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _clearDialogFields() {
-    _medicationNameController.clear();
-    _dosageController.clear();
-    _conditionController.clear();
-    _selectedTime = TimeOfDay.now();
-  }
-
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-    getAll();
+  void _clearDialogFields(TextEditingController nameController,
+      TextEditingController dosageController,
+      TextEditingController conditionController) {
+    nameController.clear();
+    dosageController.clear();
+    conditionController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacingM),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Profile Section
-            _buildUserProfile(),
-            const SizedBox(height: AppTheme.spacingL),
+    return Consumer<DashboardProvider>(
+      builder: (context, provider, child) {
+        return Scaffold(
+          backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppTheme.spacingM),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // User Profile Section
+                _buildUserProfile(provider.userinfo),
+                const SizedBox(height: AppTheme.spacingL),
 
-            // Health Overview Cards
-            _buildHealthOverview(),
-            const SizedBox(height: AppTheme.spacingL),
+                // Health Overview Cards
+                _buildHealthOverview(),
+                const SizedBox(height: AppTheme.spacingL),
 
-            // Today's Medications - Compact Design
-            _buildCompactMedicationsSection(),
-            const SizedBox(height: AppTheme.spacingL),
+                // Today's Medications - Compact Design
+                _buildCompactMedicationsSection(context, provider),
+                const SizedBox(height: AppTheme.spacingL),
 
-            _buildAppointmentsSection(appointments),
-            const SizedBox(height: AppTheme.spacingL),
+                _buildAppointmentsSection(context, provider),
+                const SizedBox(height: AppTheme.spacingL),
 
-            // Nearby Doctors Quick Access
-            _buildNearbyDoctorsSection(),
-            const SizedBox(height: AppTheme.spacingL),
-          ],
-        ),
-      ),
+                // Nearby Doctors Quick Access
+                _buildNearbyDoctorsSection(context),
+                const SizedBox(height: AppTheme.spacingL),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildUserProfile() {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
+  Widget _buildUserProfile(Map<String, dynamic>? userinfo) {
+    return Builder(
+      builder: (context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final screenHeight = MediaQuery.of(context).size.height;
 
-    return Container(
-      padding: EdgeInsets.all(screenWidth * 0.045),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Top row with avatar and user info
-          Row(
-            children: [
-              // Simple Avatar
-              Container(
-                width: screenWidth * 0.16,
-                height: screenWidth * 0.16,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.primaryColor,
-                      AppTheme.primaryLight,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(screenWidth * 0.08),
-                ),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: Colors.white,
-                  size: screenWidth * 0.07,
-                ),
+        return Container(
+          padding: EdgeInsets.all(screenWidth * 0.045),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-
-              SizedBox(width: screenWidth * 0.04),
-
-              // User info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userinfo == null ? 'Loading...' : userinfo![DBHelper.COL_NAME],
-                      style: TextStyle(
-                        fontSize: screenWidth * 0.055,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+            ],
+          ),
+          child: Column(
+            children: [
+              // Top row with avatar and user info
+              Row(
+                children: [
+                  // Simple Avatar
+                  Container(
+                    width: screenWidth * 0.16,
+                    height: screenWidth * 0.16,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.primaryColor,
+                          AppTheme.primaryLight,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      borderRadius: BorderRadius.circular(screenWidth * 0.08),
                     ),
+                    child:_buildProfileImage(screenWidth),
+        ),
 
-                    SizedBox(height: screenHeight * 0.008),
+                  SizedBox(width: screenWidth * 0.04),
 
-                    // Age and Gender
-                    Row(
+                  // User info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildInfoChip(
-                          icon: Icons.cake_outlined,
-                          text: '${userinfo == null ? '' : userinfo![DBHelper.COL_AGE]} years',
-                          screenWidth: screenWidth,
+                        Text(
+                          userinfo == null ? 'Loading...' : userinfo[DBHelper.COL_NAME],
+                          style: TextStyle(
+                            fontSize: screenWidth * 0.055,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(width: screenWidth * 0.03),
-                        _buildInfoChip(
-                          icon: userinfo != null && userinfo![DBHelper.COL_GENDER] == 'Male'
-                              ? Icons.male : Icons.female,
-                          text: '${userinfo == null ? '' : userinfo![DBHelper.COL_GENDER]}',
-                          screenWidth: screenWidth,
+
+                        SizedBox(height: screenHeight * 0.008),
+
+                        // Age and Gender
+                        Row(
+                          children: [
+                            _buildInfoChip(
+                              icon: Icons.cake_outlined,
+                              text: '${userinfo == null ? '' : userinfo[DBHelper.COL_AGE]} years',
+                              screenWidth: screenWidth,
+                            ),
+                            SizedBox(width: screenWidth * 0.03),
+                            _buildInfoChip(
+                              icon: userinfo != null && userinfo[DBHelper.COL_GENDER] == 'Male'
+                                  ? Icons.male : Icons.female,
+                              text: '${userinfo == null ? '' : userinfo[DBHelper.COL_GENDER]}',
+                              screenWidth: screenWidth,
+                            ),
+                          ],
                         ),
                       ],
                     ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: screenHeight * 0.02),
+
+              // Simple divider
+              Container(
+                height: 1,
+                width: double.infinity,
+                color: AppTheme.borderColor.withOpacity(0.5),
+              ),
+
+              SizedBox(height: screenHeight * 0.02),
+
+              // Conditions section
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Health Conditions',
+                  style: TextStyle(
+                    fontSize: screenWidth * 0.04,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+
+              SizedBox(height: screenHeight * 0.012),
+
+              // Simple condition chips
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: screenWidth * 0.025,
+                  runSpacing: screenHeight * 0.01,
+                  children: [
+                    _buildSimpleConditionChip("Asthma", screenWidth),
+                    _buildSimpleConditionChip("High BP", screenWidth),
                   ],
                 ),
               ),
             ],
           ),
-
-          SizedBox(height: screenHeight * 0.02),
-
-          // Simple divider
-          Container(
-            height: 1,
-            width: double.infinity,
-            color: AppTheme.borderColor.withOpacity(0.5),
-          ),
-
-          SizedBox(height: screenHeight * 0.02),
-
-          // Conditions section
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Health Conditions',
-              style: TextStyle(
-                fontSize: screenWidth * 0.04,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ),
-
-          SizedBox(height: screenHeight * 0.012),
-
-          // Simple condition chips
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Wrap(
-              spacing: screenWidth * 0.025,
-              runSpacing: screenHeight * 0.01,
-              children: [
-                _buildSimpleConditionChip("Asthma", screenWidth),
-                _buildSimpleConditionChip("High BP", screenWidth),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
+  Widget _buildProfileImage(double screenWidth) {
+    return FutureBuilder<File?>(
+      future: _loadProfileImageFromDB(),
+      builder: (context, snapshot) {
+        if (snapshot.hasData && snapshot.data != null) {
+          return ClipOval(
+            child: Image.file(
+              snapshot.data!,
+              width: screenWidth * 0.14,
+              height: screenWidth * 0.14,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Icon(
+                  Icons.person_rounded,
+                  color: Colors.white,
+                  size: screenWidth * 0.07,
+                );
+              },
+            ),
+          );
+        } else {
+          return Icon(
+            Icons.person_rounded,
+            color: Colors.white,
+            size: screenWidth * 0.07,
+          );
+        }
+      },
+    );
+  }
+
+  Future<File?> _loadProfileImageFromDB() async {
+    try {
+      final users = await DBHelper.getInstance.getUsers();
+      if (users.isNotEmpty) {
+        final imagePath = users.first[DBHelper.COL_PROFILE_IMAGE];
+        if (imagePath != null && File(imagePath).existsSync()) {
+          return File(imagePath);
+        }
+      }
+    } catch (e) {
+      print("Error loading profile image: $e");
+    }
+    return null;
+  }
   Widget _buildInfoChip({
     required IconData icon,
     required String text,
@@ -490,22 +487,40 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-
   Widget _buildHealthOverview() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Health Overview",
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
+    return Builder(
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        _buildOverviewCard("12", "Meds Taken", "This Week", Icons.medication, AppTheme.successColor),
-        const SizedBox(height: AppTheme.spacingM),
-        _buildViewDetailsButton(),
-      ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Health Overview",
+                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingM),
+              _buildOverviewCard("12", "Meds Taken", "This Week", Icons.medication, AppTheme.successColor),
+              const SizedBox(height: AppTheme.spacingM),
+              _buildViewDetailsButton(context),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -551,7 +566,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-  Widget _buildViewDetailsButton() {
+  Widget _buildViewDetailsButton(BuildContext context) {
     final navigatorBarState = context.findAncestorStateOfType<NavigatorBarState>();
 
     return Container(
@@ -591,92 +606,101 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-  Widget _buildCompactMedicationsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Today's Medications",
-              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Row(
-              children: [
-                IconButton(
-                  onPressed: _showAddMedicationDialog,
-                  icon: Icon(Icons.add_circle_outline, color: AppTheme.primaryColor,size: 30,),
-                  tooltip: 'Add Medication',
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTheme.spacingS),
-
-        // Compact medication list
-        Container(
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceColor,
-            borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
-            border: Border.all(color: AppTheme.borderColor),
+  Widget _buildCompactMedicationsSection(BuildContext context, DashboardProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Column(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              ...medications.asMap().entries.map((entry) {
-                int index = entry.key;
-                Map<String, dynamic> medication = entry.value;
-                bool isLast = index == medications.length - 1;
-
-                return _buildCompactMedicationItem(medication, index, isLast);
-              }),
-              if (medications.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  child: Column(
-                    children: [
-                      Icon(Icons.medication_outlined,
-                          size: 48,
-                          color: AppTheme.textHint),
-                      const SizedBox(height: 8),
-                      Text(
-                        'No medications added yet',
-                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                          color: AppTheme.textHint,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tap + to add your first medication reminder',
-                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                          color: AppTheme.textHint,
-                        ),
-                      ),
-                    ],
-                  ),
+              Text(
+                "Today's Medications",
+                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
+              ),
+              IconButton(
+                onPressed: () => _showAddMedicationDialog(context),
+                icon: Icon(Icons.add_circle_outline, color: AppTheme.primaryColor, size: 30),
+                tooltip: 'Add Medication',
+              ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: AppTheme.spacingS),
+
+          // Compact medication list
+          Container(
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
+              border: Border.all(color: AppTheme.borderColor),
+            ),
+            child: Column(
+              children: [
+                ...provider.medications.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  Map<String, dynamic> medication = entry.value;
+                  bool isLast = index == provider.medications.length - 1;
+
+                  return _buildCompactMedicationItem(context, medication, index, isLast, provider);
+                }),
+                if (provider.medications.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(AppTheme.spacingL),
+                    child: Column(
+                      children: [
+                        Icon(Icons.medication_outlined,
+                            size: 48,
+                            color: AppTheme.textHint),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No medications added yet',
+                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                            color: AppTheme.textHint,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tap + to add your first medication reminder',
+                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textHint,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildCompactMedicationItem(Map<String, dynamic> medication, int index, bool isLast) {
-
+  Widget _buildCompactMedicationItem(BuildContext context, Map<String, dynamic> medication,
+      int index, bool isLast, DashboardProvider provider) {
     final bool isTaken = medication[DBHelper.COL_MED_IS_TAKEN] == 1;
     final int timeStamp = medication[DBHelper.COL_MED_TIME];
     final medicationDateTime = DateTime.fromMillisecondsSinceEpoch(timeStamp);
     final medicationTime = TimeOfDay.fromDateTime(medicationDateTime).format(context);
 
-
-
     return GestureDetector(
-      onTap: () => toggleMedicationTaken(index),
-      onLongPress: () => _confirmDeleteMedication(index),
+      onTap: () => provider.toggleMedicationTaken(index),
+      onLongPress: () => _confirmDeleteMedication(context, index),
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
@@ -755,37 +779,71 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-  Widget _buildAppointmentsSection(List<Map<String, dynamic>> appointments) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-
-        const SizedBox(height: AppTheme.spacingM),
-
-        appointments.isEmpty
-            ? Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              "No upcoming appointments",
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textHint,
-              ),
+  Widget _buildAppointmentsSection(BuildContext context, DashboardProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Upcoming Appointments",
+            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
           ),
-        )
-            : Column(
-          children: appointments
-              .map((appointment) => _buildAppointmentCard(appointment))
-              .toList(),
-        ),
-      ],
+          const SizedBox(height: AppTheme.spacingM),
+
+          provider.appointments.isEmpty
+              ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Icon(Icons.calendar_today_outlined,
+                      size: 48,
+                      color: AppTheme.textHint),
+                  const SizedBox(height: 8),
+                  Text(
+                    "No upcoming appointments",
+                    style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textHint,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Find nearby doctors to book appointments',
+                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+              : Column(
+            children: provider.appointments
+                .map((appointment) => _buildAppointmentCard(context, appointment, provider))
+                .toList(),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
-    DateTime date =
-    DateTime.fromMillisecondsSinceEpoch(appointment['date'] as int);
+  Widget _buildAppointmentCard(BuildContext context, Map<String, dynamic> appointment, DashboardProvider provider) {
+    DateTime date = DateTime.fromMillisecondsSinceEpoch(appointment['date'] as int);
     String formattedDate = DateFormat("dd MMM yyyy").format(date);
 
     return GestureDetector(
@@ -794,9 +852,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text("Delete Appointment"),
-            content: Text(
-              "Are you sure you want to delete the appointment ? "
-            ),
+            content: Text("Are you sure you want to delete the appointment?"),
             actions: [
               TextButton(
                 child: const Text("Cancel"),
@@ -814,27 +870,16 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
         );
 
         if (confirmDelete == true) {
-          // delete from DB
-          await DBHelper.getInstance.deleteAppointment(id: appointment['id']);
-          // refresh UI
-          (context as Element).markNeedsBuild();
+          await provider.deleteAppointment(appointment['id']);
         }
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
+        margin: EdgeInsets.only(bottom: provider.appointments.last == appointment ? 0 : AppTheme.spacingM),
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceColor,
+          color: AppTheme.backgroundColor,
           borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
           border: Border.all(color: AppTheme.borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -880,8 +925,7 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
                       const SizedBox(width: 4),
                       Text(
                         "$formattedDate • ${appointment['time']}",
-                        style:
-                        AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -912,103 +956,110 @@ class _UserDashboardScreenState extends State<UserDashBoard> {
     );
   }
 
-  Widget _buildNearbyDoctorsSection() {
+  Widget _buildNearbyDoctorsSection(BuildContext context) {
     final navigatorBarState = context.findAncestorStateOfType<NavigatorBarState>();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              "Nearby Doctors",
-              style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Nearby Doctors",
+                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                navigatorBarState?.goToNearbyDoctors();
-              },
-              child: const Text("View All"),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTheme.spacingM),
-        GestureDetector(
-          onTap: () {
-            navigatorBarState?.goToNearbyDoctors();
-          },
-          child: Container(
-            width: MediaQuery.of(context).size.width,
-            height: 160,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              children: [
-                Image.asset(
-                  'assets/images/maps_preview.png',
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.3),
+              TextButton(
+                onPressed: () {
+                  navigatorBarState?.goToNearbyDoctors();
+                },
+                child: const Text("View All"),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacingM),
+          GestureDetector(
+            onTap: () {
+              navigatorBarState?.goToNearbyDoctors();
+            },
+            child: Container(
+              width: MediaQuery.of(context).size.width,
+              height: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  Image.asset(
+                    'assets/images/maps_preview.png',
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.3),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 12,
+                    left: 12,
+                    right: 12,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Find nearby doctors',
+                          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ],
                     ),
                   ),
-                ),
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Find nearby doctors',
-                        style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
-  }
-
-  @override
-  void dispose() {
-    _medicationNameController.dispose();
-    _dosageController.dispose();
-    _conditionController.dispose();
-    super.dispose();
   }
 }

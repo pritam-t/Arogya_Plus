@@ -1,13 +1,11 @@
  import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mediscan_plus/Provider/Dashboard/AppointmentProvider.dart';
-import 'package:mediscan_plus/Provider/Dashboard/MedicationProvider.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'Provider/Dashboard/UserProvider.dart';
+import 'Provider/Dashboard/DashboardProvider.dart';
 import 'Splash_Screen.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
@@ -29,31 +27,28 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
+  @override
   Widget build(BuildContext context) {
-
-
-    return MaterialApp(
-      title: 'MediScan+',
-      theme: AppTheme.lightTheme,
-      routes: {
-        '/navigator-bar' : (context) => const NavigatorBar(),
-        '/profile-setup': (context) => const ProfileSetupScreen(),
-        '/userdashboard': (context) =>  UserDashBoard(),
-        '/login': (context) => const LoginScreen(),
-        '/forgotpass': (context) => const ForgotPasswordScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/user_logs': (context) => const User_Logs_Screen(),
-
-        '/near-doc': (context) =>const NearbyDoc_Screen(),
-      },
-
-      debugShowCheckedModeBanner: false,
-      home: MultiProvider(providers: [
-        ChangeNotifierProvider(create: (_) => MedicationProvider()..loadMedications()),
-        ChangeNotifierProvider(create: (_) => AppointmentProvider()..loadAppointments()),
-        ChangeNotifierProvider(create: (_) => UserProvider()..loadUser),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        // Add more providers here if needed later
       ],
-      child: const SplashScreen(),
+      child: MaterialApp(
+        title: 'MediScan+',
+        theme: AppTheme.lightTheme,
+        routes: {
+          '/navigator-bar': (context) => const NavigatorBar(),
+          '/profile-setup': (context) => const ProfileSetupScreen(),
+          '/userdashboard': (context) => const UserDashBoard(),
+          '/login': (context) => const LoginScreen(),
+          '/forgotpass': (context) => const ForgotPasswordScreen(),
+          '/signup': (context) => const SignUpScreen(),
+          '/user_logs': (context) => const User_Logs_Screen(),
+          '/near-doc': (context) => const NearbyDoc_Screen(),
+        },
+        debugShowCheckedModeBanner: false,
+        home: const SplashScreen(),
       ),
     );
   }

@@ -1,8 +1,11 @@
   import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
   import 'package:url_launcher/url_launcher_string.dart';
   
-  import '../../data/local/db_helper.dart';
+  import '../../Provider/Dashboard/DashboardProvider.dart';
+import '../../data/local/db_helper.dart';
 import '../../main.dart';
+import 'navigation.dart';
   // Import your main.dart file to access AppTheme
   
   class DoctorDetailsScreen extends StatelessWidget {
@@ -76,6 +79,8 @@ import '../../main.dart';
     }
 
     Future<void> _showAppointmentDialog(BuildContext context, Map<String, dynamic> doctor) async {
+
+      final navigatorBarState = context.findAncestorStateOfType<NavigatorBarState>();
       final TextEditingController timeController = TextEditingController();
       String appointmentType = "In-person"; // default
       DateTime? selectedDate;
@@ -86,7 +91,7 @@ import '../../main.dart';
           return StatefulBuilder(
             builder: (context, setState) {
               return AlertDialog(
-                title: Text("Book Appointment with ${doctor['doctorName']}"),
+                title: Text("Book Appointment"),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -178,7 +183,7 @@ import '../../main.dart';
                     onPressed: () async {
                       if (selectedDate != null && timeController.text.isNotEmpty) {
                         try {
-                          await DBHelper.getInstance.insertAppointment(
+                          await Provider.of<DashboardProvider>(context, listen: false).addAppointment(
                             doctor: doctor['doctorName'],
                             specialty: doctor['expertise'],
                             date: selectedDate!.millisecondsSinceEpoch,
@@ -227,7 +232,7 @@ import '../../main.dart';
                                 label: 'View',
                                 textColor: Colors.white,
                                 onPressed: () {
-
+                                  navigatorBarState?.gotoDashboard();
                                 },
                               ),
                             ),
