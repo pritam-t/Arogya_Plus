@@ -78,12 +78,17 @@ import 'navigation.dart';
       return colors[hash.abs() % colors.length];
     }
 
-    Future<void> _showAppointmentDialog(BuildContext context, Map<String, dynamic> doctor) async {
+    Future<void> _showAppointmentDialog(
+        BuildContext context, Map<String, dynamic> doctor) async
+    {
 
       final navigatorBarState = context.findAncestorStateOfType<NavigatorBarState>();
       final TextEditingController timeController = TextEditingController();
       String appointmentType = "In-person"; // default
       DateTime? selectedDate;
+
+      final screenWidth = MediaQuery.of(context).size.width;
+      final screenHeight = MediaQuery.of(context).size.height;
 
       await showDialog(
         context: context,
@@ -91,99 +96,126 @@ import 'navigation.dart';
           return StatefulBuilder(
             builder: (context, setState) {
               return AlertDialog(
-                title: Text("Book Appointment"),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Select Date
-                    Container(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2100),
-                          );
-                          if (picked != null) {
-                            setState(() {
-                              selectedDate = picked;
-                            });
-                          }
-                        },
-                        icon: Icon(Icons.calendar_today),
-                        label: Text(selectedDate == null
-                            ? "Pick Date"
-                            : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: selectedDate != null
-                              ? AppTheme.successColor
-                              : AppTheme.primaryColor,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-
-                    // Enter Time
-                    TextField(
-                      controller: timeController,
-                      decoration: InputDecoration(
-                        labelText: "Time (e.g. 14:30)",
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.access_time),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-
-                    // Select Type
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: appointmentType,
-                          isExpanded: true,
-                          items: ["In-person", "Online"]
-                              .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Row(
-                              children: [
-                                Icon(t == "In-person"
-                                    ? Icons.local_hospital
-                                    : Icons.video_call),
-                                SizedBox(width: 8),
-                                Text(t),
-                              ],
-                            ),
-                          ))
-                              .toList(),
-                          onChanged: (val) {
-                            setState(() {
-                              appointmentType = val!;
-                            });
+                title: Text(
+                  "Book Appointment",
+                  style: TextStyle(fontSize: screenWidth * 0.045),
+                ),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Select Date
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setState(() {
+                                selectedDate = picked;
+                              });
+                            }
                           },
+                          icon: Icon(Icons.calendar_today, size: screenWidth * 0.05),
+                          label: Text(
+                            selectedDate == null
+                                ? "Pick Date"
+                                : "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}",
+                            style: TextStyle(fontSize: screenWidth * 0.04),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedDate != null
+                                ? AppTheme.successColor
+                                : AppTheme.primaryColor,
+                            padding: EdgeInsets.symmetric(
+                              vertical: screenHeight * 0.015,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      SizedBox(height: screenHeight * 0.02),
+
+                      // Enter Time
+                      TextField(
+                        controller: timeController,
+                        decoration: InputDecoration(
+                          labelText: "Time (e.g. 14:30)",
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.access_time, size: screenWidth * 0.05),
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: screenHeight * 0.015,
+                            horizontal: screenWidth * 0.03,
+                          ),
+                        ),
+                        style: TextStyle(fontSize: screenWidth * 0.04),
+                      ),
+                      SizedBox(height: screenHeight * 0.02),
+
+                      // Select Type
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.03),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(screenWidth * 0.01),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: appointmentType,
+                            isExpanded: true,
+                            items: ["In-person", "Online"].map((t) {
+                              return DropdownMenuItem(
+                                value: t,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      t == "In-person"
+                                          ? Icons.local_hospital
+                                          : Icons.video_call,
+                                      size: screenWidth * 0.05,
+                                    ),
+                                    SizedBox(width: screenWidth * 0.02),
+                                    Text(
+                                      t,
+                                      style: TextStyle(fontSize: screenWidth * 0.04),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setState(() {
+                                appointmentType = val!;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actionsPadding: EdgeInsets.symmetric(
+                  horizontal: screenWidth * 0.03,
+                  vertical: screenHeight * 0.01,
                 ),
                 actions: [
                   TextButton(
-                    child: Text("Cancel"),
+                    child: Text("Cancel", style: TextStyle(fontSize: screenWidth * 0.04)),
                     onPressed: () => Navigator.pop(dialogContext),
                   ),
                   ElevatedButton.icon(
-                    icon: Icon(Icons.check),
-                    label: Text("Book Appointment"),
+                    icon: Icon(Icons.check, size: screenWidth * 0.045),
+                    label: Text("Book Appointment", style: TextStyle(fontSize: screenWidth * 0.04)),
                     onPressed: () async {
                       if (selectedDate != null && timeController.text.isNotEmpty) {
                         try {
-                          await Provider.of<DashboardProvider>(context, listen: false).addAppointment(
+                          await Provider.of<DashboardProvider>(context, listen: false)
+                              .addAppointment(
                             doctor: doctor['doctorName'],
                             specialty: doctor['expertise'],
                             date: selectedDate!.millisecondsSinceEpoch,
@@ -193,13 +225,12 @@ import 'navigation.dart';
 
                           Navigator.pop(dialogContext);
 
-                          // Show success snackbar
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Row(
                                 children: [
-                                  Icon(Icons.check_circle, color: Colors.white),
-                                  SizedBox(width: 8),
+                                  Icon(Icons.check_circle, color: Colors.white, size: screenWidth * 0.05),
+                                  SizedBox(width: screenWidth * 0.02),
                                   Expanded(
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,12 +240,12 @@ import 'navigation.dart';
                                           'Appointment Booked!',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                            fontSize: screenWidth * 0.04,
                                           ),
                                         ),
                                         Text(
                                           'With Dr. ${doctor['doctorName']} on ${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year} at ${timeController.text}',
-                                          style: TextStyle(fontSize: 12),
+                                          style: TextStyle(fontSize: screenWidth * 0.035),
                                         ),
                                       ],
                                     ),
@@ -225,9 +256,9 @@ import 'navigation.dart';
                               duration: Duration(seconds: 4),
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(screenWidth * 0.02),
                               ),
-                              margin: EdgeInsets.all(16),
+                              margin: EdgeInsets.all(screenWidth * 0.03),
                               action: SnackBarAction(
                                 label: 'View',
                                 textColor: Colors.white,
@@ -238,51 +269,53 @@ import 'navigation.dart';
                             ),
                           );
                         } catch (e) {
-                          // Show error snackbar if booking fails
                           Navigator.pop(dialogContext);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Row(
                                 children: [
-                                  Icon(Icons.error, color: Colors.white),
-                                  SizedBox(width: 8),
-                                  Text('Failed to book appointment. Please try again.'),
+                                  Icon(Icons.error, color: Colors.white, size: screenWidth * 0.05),
+                                  SizedBox(width: screenWidth * 0.02),
+                                  Expanded(child: Text('Failed to book appointment. Please try again.')),
                                 ],
                               ),
                               backgroundColor: AppTheme.errorColor,
                               duration: Duration(seconds: 3),
                               behavior: SnackBarBehavior.floating,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(screenWidth * 0.02),
                               ),
-                              margin: EdgeInsets.all(16),
+                              margin: EdgeInsets.all(screenWidth * 0.03),
                             ),
                           );
                         }
                       } else {
-                        // Show validation snackbar
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Row(
                               children: [
-                                Icon(Icons.warning, color: Colors.white),
-                                SizedBox(width: 8),
-                                Text('Please select date and time'),
+                                Icon(Icons.warning, color: Colors.white, size: screenWidth * 0.05),
+                                SizedBox(width: screenWidth * 0.02),
+                                Expanded(child: Text('Please select date and time')),
                               ],
                             ),
                             backgroundColor: AppTheme.warningColor,
                             duration: Duration(seconds: 2),
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(screenWidth * 0.02),
                             ),
-                            margin: EdgeInsets.all(16),
+                            margin: EdgeInsets.all(screenWidth * 0.03),
                           ),
                         );
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.successColor,
+                      padding: EdgeInsets.symmetric(
+                        vertical: screenHeight * 0.015,
+                        horizontal: screenWidth * 0.03,
+                      ),
                     ),
                   ),
                 ],
@@ -304,208 +337,210 @@ import 'navigation.dart';
       final avatarText = _getAvatarText(doctor['doctorName']);
       final avatarColor = _getAvatarColor(doctor['doctorName']);
   
-      return Scaffold(
-        backgroundColor: AppTheme.backgroundColor,
-        body: CustomScrollView(
-          slivers: [
-            // Custom App Bar with Hero Section
-
-            SliverAppBar(
-              expandedHeight: screenHeight * 0.25, // reduced height
-              pinned: true,
-              elevation: 0,
-              backgroundColor: expertiseColor,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        expertiseColor,
-                        expertiseColor.withOpacity(0.85),
-                      ],
-                    ),
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: screenWidth * 0.05,
-                        vertical: screenHeight * 0.015,
+      return SafeArea(
+        child: Scaffold(
+          backgroundColor: AppTheme.backgroundColor,
+          body: CustomScrollView(
+            slivers: [
+              // Custom App Bar with Hero Section
+        
+              SliverAppBar(
+                expandedHeight: screenHeight * 0.25, // reduced height
+                pinned: true,
+                elevation: 0,
+                backgroundColor: expertiseColor,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          expertiseColor,
+                          expertiseColor.withOpacity(0.85),
+                        ],
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end, // push content to bottom
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // Doctor Avatar (smaller)
-                          Container(
-                            width: screenWidth * 0.20,
-                            height: screenWidth * 0.20,
-                            decoration: BoxDecoration(
-                              color: avatarColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 3),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: screenWidth * 0.05,
+                          vertical: screenHeight * 0.015,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end, // push content to bottom
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Doctor Avatar (smaller)
+                            Container(
+                              width: screenWidth * 0.20,
+                              height: screenWidth * 0.20,
+                              decoration: BoxDecoration(
+                                color: avatarColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  avatarText,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: screenWidth * 0.07,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+        
+                            SizedBox(height: screenHeight * 0.01),
+        
+                            // Doctor Name
+                            Text(
+                              doctor['doctorName'],
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: screenWidth * 0.05,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+        
+                            SizedBox(height: screenHeight * 0.005),
+        
+                            // Rating Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.star, color: Colors.amber[300], size: screenWidth * 0.045),
+                                SizedBox(width: screenWidth * 0.01),
+                                Text(
+                                  '${doctor['rating']}',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: screenWidth * 0.038,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(width: screenWidth * 0.015),
+                                Flexible(
+                                  child: Text(
+                                    '(${doctor['reviews']} reviews)',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.85),
+                                      fontSize: screenWidth * 0.033,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
-                            child: Center(
-                              child: Text(
-                                avatarText,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: screenWidth * 0.07,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: screenHeight * 0.01),
-
-                          // Doctor Name
-                          Text(
-                            doctor['doctorName'],
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: screenWidth * 0.05,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                          SizedBox(height: screenHeight * 0.005),
-
-                          // Rating Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.star, color: Colors.amber[300], size: screenWidth * 0.045),
-                              SizedBox(width: screenWidth * 0.01),
-                              Text(
-                                '${doctor['rating']}',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: screenWidth * 0.038,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              SizedBox(width: screenWidth * 0.015),
-                              Flexible(
-                                child: Text(
-                                  '(${doctor['reviews']} reviews)',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.85),
-                                    fontSize: screenWidth * 0.033,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-  
-            // Content
-            SliverToBoxAdapter(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: AppTheme.surfaceColor,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
+          
+              // Content
+              SliverToBoxAdapter(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.surfaceColor,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
                   ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.all(screenWidth * 0.06),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Quick Stats Row
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              context,
-                              Icons.location_on,
-                              doctor['distanceText'],
-                              'Distance',
-                              AppTheme.errorColor,
+                  child: Padding(
+                    padding: EdgeInsets.all(screenWidth * 0.06),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Quick Stats Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                context,
+                                Icons.location_on,
+                                doctor['distanceText'],
+                                'Distance',
+                                AppTheme.errorColor,
+                              ),
                             ),
-                          ),
-                          SizedBox(width: screenWidth * 0.04),
-                          Expanded(
-                            child: _buildStatCard(
-                              context,
-                              Icons.access_time,
-                              doctor['isAvailable'] ? 'Available' : 'Closed',
-                              'Status',
-                              doctor['isAvailable'] ? AppTheme.successColor : AppTheme.warningColor,
+                            SizedBox(width: screenWidth * 0.04),
+                            Expanded(
+                              child: _buildStatCard(
+                                context,
+                                Icons.access_time,
+                                doctor['isAvailable'] ? 'Available' : 'Closed',
+                                'Status',
+                                doctor['isAvailable'] ? AppTheme.successColor : AppTheme.warningColor,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: screenHeight * 0.04),
-  
-                      // Information Cards
-                      _buildInfoCard(
-                        context,
-                        'Specialization',
-                        Icons.medical_services,
-                        expertiseColor,
-                        [
-                          _InfoItem('Expertise', doctor['expertise']),
-                        ],
-                      ),
-                      SizedBox(height: screenHeight * 0.025),
-  
-                      _buildInfoCard(
-                        context,
-                        'Contact Information',
-                        Icons.contact_phone,
-                        AppTheme.primaryColor,
-                        [
-                          if (doctor['phoneNumber'].isNotEmpty)
-                            _InfoItem('Phone', doctor['phoneNumber']),
-                          _InfoItem('Address', doctor['address']),
-                        ],
-                      ),
-                      SizedBox(height: screenHeight * 0.025),
-  
-                      _buildInfoCard(
-                        context,
-                        'Working Hours',
-                        Icons.schedule,
-                        AppTheme.warningColor,
-                        [
-                          _InfoItem('Timing', _formatTiming(doctor['timing'])),
-                        ],
-                      ),
-                      SizedBox(height: screenHeight * 0.05),
-  
-                      // Action Buttons
-                      _buildActionButtons(context),
-                      SizedBox(height: screenHeight * 0.03),
-                    ],
+                          ],
+                        ),
+                        SizedBox(height: screenHeight * 0.04),
+          
+                        // Information Cards
+                        _buildInfoCard(
+                          context,
+                          'Specialization',
+                          Icons.medical_services,
+                          expertiseColor,
+                          [
+                            _InfoItem('Expertise', doctor['expertise']),
+                          ],
+                        ),
+                        SizedBox(height: screenHeight * 0.025),
+          
+                        _buildInfoCard(
+                          context,
+                          'Contact Information',
+                          Icons.contact_phone,
+                          AppTheme.primaryColor,
+                          [
+                            if (doctor['phoneNumber'].isNotEmpty)
+                              _InfoItem('Phone', doctor['phoneNumber']),
+                            _InfoItem('Address', doctor['address']),
+                          ],
+                        ),
+                        SizedBox(height: screenHeight * 0.025),
+          
+                        _buildInfoCard(
+                          context,
+                          'Working Hours',
+                          Icons.schedule,
+                          AppTheme.warningColor,
+                          [
+                            _InfoItem('Timing', _formatTiming(doctor['timing'])),
+                          ],
+                        ),
+                        SizedBox(height: screenHeight * 0.05),
+          
+                        // Action Buttons
+                        _buildActionButtons(context),
+                        SizedBox(height: screenHeight * 0.03),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }

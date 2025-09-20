@@ -260,6 +260,16 @@ class UserDashBoard extends StatelessWidget {
         final screenWidth = MediaQuery.of(context).size.width;
         final screenHeight = MediaQuery.of(context).size.height;
 
+        double calculateBMI(Map<String, dynamic>? userinfo) {
+          if (userinfo == null) return 0.0;
+          final heightCm = userinfo[DBHelper.COL_HEIGHT];
+          final weightKg = userinfo[DBHelper.COL_WEIGHT];
+          if (heightCm == null || weightKg == null) return 0.0;
+          final heightM = heightCm / 100;
+          final bmi = weightKg / (heightM * heightM);
+          return double.parse(bmi.toStringAsFixed(1));
+        }
+
         return Container(
           padding: EdgeInsets.all(screenWidth * 0.045),
           decoration: BoxDecoration(
@@ -279,10 +289,10 @@ class UserDashBoard extends StatelessWidget {
               // Top row with avatar and user info
               Row(
                 children: [
-                  // Avatar
+                  // Larger Avatar
                   Container(
-                    width: screenWidth * 0.16,
-                    height: screenWidth * 0.16,
+                    width: screenWidth * 0.22,
+                    height: screenWidth * 0.22,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
@@ -292,14 +302,14 @@ class UserDashBoard extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(screenWidth * 0.08),
+                      borderRadius: BorderRadius.circular(screenWidth * 0.11),
                     ),
                     child: _buildProfileImage(screenWidth),
                   ),
 
-                  SizedBox(width: screenWidth * 0.04),
+                  SizedBox(width: screenWidth * 0.05),
 
-                  // User info
+                  // Name and Age/Gender
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,16 +317,13 @@ class UserDashBoard extends StatelessWidget {
                         Text(
                           userinfo == null ? 'Loading...' : userinfo[DBHelper.COL_NAME],
                           style: TextStyle(
-                            fontSize: screenWidth * 0.055,
+                            fontSize: screenWidth * 0.065,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.textPrimary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-
                         SizedBox(height: screenHeight * 0.008),
-
-                        // Age and Gender
                         Row(
                           children: [
                             _buildInfoChip(
@@ -326,8 +333,9 @@ class UserDashBoard extends StatelessWidget {
                             ),
                             SizedBox(width: screenWidth * 0.03),
                             _buildInfoChip(
-                              icon: userinfo?[DBHelper.COL_GENDER] == 'Male'
-                                  ? Icons.male : Icons.female,
+                              icon: userinfo != null && userinfo[DBHelper.COL_GENDER] == 'Male'
+                                  ? Icons.male
+                                  : Icons.female,
                               text: '${userinfo?[DBHelper.COL_GENDER] ?? ''}',
                               screenWidth: screenWidth,
                             ),
@@ -339,7 +347,7 @@ class UserDashBoard extends StatelessWidget {
                 ],
               ),
 
-              SizedBox(height: screenHeight * 0.02),
+              SizedBox(height: screenHeight * 0.03),
 
               // Divider
               Container(
@@ -348,63 +356,36 @@ class UserDashBoard extends StatelessWidget {
                 color: AppTheme.borderColor.withOpacity(0.5),
               ),
 
-              SizedBox(height: screenHeight * 0.02),
+              SizedBox(height: screenHeight * 0.025),
 
-              // Quick Stats / Other Info
+              // BMI & Blood Group
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Quick Stats',
+                  'Health Stats',
                   style: TextStyle(
-                    fontSize: screenWidth * 0.04,
+                    fontSize: screenWidth * 0.045,
                     fontWeight: FontWeight.w600,
                     color: AppTheme.textSecondary,
                   ),
                 ),
               ),
-
-              SizedBox(height: screenHeight * 0.012),
-
+              SizedBox(height: screenHeight * 0.015),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Consumer<DashboardProvider>(
-                  builder: (context, provider, child) {
-                    final chips = <Widget>[];
-
-                    // Medications taken count
-                    final medsTaken = provider.medications
-                        .where((m) => m[DBHelper.COL_MED_IS_TAKEN] == 1)
-                        .length;
-                    chips.add(_buildSimpleConditionChip(
-                        "Meds Taken: $medsTaken", screenWidth));
-
-                    // Upcoming appointment
-                    if (provider.appointments.isNotEmpty) {
-                      final nextAppointment = provider.appointments.first;
-                      chips.add(_buildSimpleConditionChip(
-                          "Next Appointment: ${nextAppointment[DBHelper.COL_APPOINT_DOCTOR]}",
-                          screenWidth));
-                    }
-
-                    // Primary Emergency Contact
-                    final primaryContact = provider.userinfo != null
-                        ? provider.userinfo![DBHelper.COL_EMERGENCY_NAME]
-                        : null;
-                    if (primaryContact != null) {
-                      chips.add(_buildSimpleConditionChip(
-                          "Emergency Contact: $primaryContact", screenWidth));
-                    }
-
-                    if (chips.isEmpty) {
-                      chips.add(_buildSimpleConditionChip("No quick stats", screenWidth));
-                    }
-
-                    return Wrap(
-                      spacing: screenWidth * 0.025,
-                      runSpacing: screenHeight * 0.01,
-                      children: chips,
-                    );
-                  },
+                child: Wrap(
+                  spacing: screenWidth * 0.025,
+                  runSpacing: screenHeight * 0.01,
+                  children: [
+                    _buildSimpleConditionChip(
+                      "BMI: ${calculateBMI(userinfo)}",
+                      screenWidth,
+                    ),
+                    _buildSimpleConditionChip(
+                      "Blood Group: ${userinfo?[DBHelper.COL_BLOOD] ?? 'N/A'}",
+                      screenWidth,
+                    ),
+                  ],
                 ),
               ),
             ],
