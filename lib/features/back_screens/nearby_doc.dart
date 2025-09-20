@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher_string.dart';
 
+import '../../data/Private.dart';
 import '../../main.dart';
 import 'doctor_detail_screen.dart';
 
@@ -80,7 +81,7 @@ class _NearbyDoctorsScreenState extends State<NearbyDoc_Screen> {
       double lat = position.latitude;
       double lng = position.longitude;
 
-      final apiKey = "AIzaSyCds-eRBeUj-Hk4K3D8nq2eYZb5DJZmo_A";
+      final apiKey = Keys.maps;
       final radius = 5000; // 5 km
       final type = "doctor";
 

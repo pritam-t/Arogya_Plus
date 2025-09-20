@@ -1,11 +1,13 @@
  import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mediscan_plus/Provider/Dashboard/AppointmentProvider.dart';
+import 'package:mediscan_plus/Provider/Dashboard/MedicationProvider.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
 import 'package:mediscan_plus/features/user_screens/dashboard.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'Provider/UserProfileProvider.dart';
+import 'Provider/Dashboard/UserProvider.dart';
 import 'Splash_Screen.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
@@ -47,7 +49,9 @@ class MyApp extends StatelessWidget {
 
       debugShowCheckedModeBanner: false,
       home: MultiProvider(providers: [
-        ChangeNotifierProvider(create: (context) => UserProfileProvider()),
+        ChangeNotifierProvider(create: (_) => MedicationProvider()..loadMedications()),
+        ChangeNotifierProvider(create: (_) => AppointmentProvider()..loadAppointments()),
+        ChangeNotifierProvider(create: (_) => UserProvider()..loadUser),
       ],
       child: const SplashScreen(),
       ),

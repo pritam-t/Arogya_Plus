@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:mediscan_plus/Provider/Assistant_Cubit/search_state.dart';
 
+import '../../data/Private.dart';
+
 class SearchCubit extends Cubit<SearchState>{
 
   static List<Map<String,dynamic>> chatList = [];
@@ -21,7 +23,7 @@ class SearchCubit extends Cubit<SearchState>{
       ]
     });
 
-    String apiKey = "AIzaSyA8LN4kAciLh1ktEa774o-VJ8DW6FCpp3w";
+    String apiKey = Keys.gemini;
     String geminiUrl =
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey";
 
