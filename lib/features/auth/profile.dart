@@ -26,6 +26,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _weightController = TextEditingController();
   final _emergencyNameController = TextEditingController();
   final _emergencyPhoneController = TextEditingController();
+  final _relationshipController = TextEditingController();
 
   // Form data
   String _selectedGender = '';
@@ -65,6 +66,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     _weightController.dispose();
     _emergencyNameController.dispose();
     _emergencyPhoneController.dispose();
+    _relationshipController.dispose();
     super.dispose();
   }
 
@@ -155,116 +157,106 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     });
 
     try {
-      // 1) Ensure we have an authenticated supabase user
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        throw Exception('No authenticated user found. Please login again.');
+      // Parse form data
+      final uname = _nameController.text.trim();
+      final uage = int.tryParse(_ageController.text.trim()) ?? 0;
+      final gender = _selectedGender;
+      final uheight = int.tryParse(_heightController.text.trim()) ?? 0;
+      final uweight = int.tryParse(_weightController.text.trim()) ?? 0;
+      final ublood = _selectedBloodType;
+      final emergencyName = _emergencyNameController.text.trim();
+      final emergencyPhone = _emergencyPhoneController.text.trim();
+      final emergencyRelationship = _relationshipController.text.trim().isEmpty
+          ? 'Emergency Contact'
+          : _relationshipController.text.trim();
+
+      // Try to save to Supabase first (if user is authenticated)
+      bool savedToSupabase = false;
+      try {
+        final user = Supabase.instance.client.auth.currentUser;
+        if (user != null) {
+          // Build profile & medical maps
+          final profile = {
+            'id': user.id,
+            'name': uname,
+            'age': uage,
+            'gender': gender,
+            'height': uheight.toDouble(),
+            'weight': uweight.toDouble(),
+            'blood_group': ublood,
+            'email': user.email,
+          };
+
+          final medical = {
+            'user_id': user.id,
+            'allergies': _selectedAllergies,
+            'current_medicines': _selectedMedicalConditions,
+            'emergency_contact_name': emergencyName,
+            'emergency_contact_number': emergencyPhone,
+          };
+
+          final supabase = Supabase.instance.client;
+
+          // Save to Supabase
+          await supabase.from('profiles').upsert(profile).select();
+          await supabase.from('medical_info').upsert(medical).select();
+          savedToSupabase = true;
+        }
+      } catch (supabaseError) {
+        print("Supabase save failed: $supabaseError");
+        // Continue with local save
       }
 
-      // 2) Build profile & medical maps
-      final profile = {
-        'id': user.id, // must match auth.users.id (UUID)
-        'name': _nameController.text.trim(),
-        'age': int.tryParse(_ageController.text.trim()) ?? 0,
-        'gender': _selectedGender,
-        'height': double.tryParse(_heightController.text.trim()) ?? 0,
-        'weight': double.tryParse(_weightController.text.trim()) ?? 0,
-        'blood_group': _selectedBloodType,
-        'email': user.email,
-      };
-
-      final medical = {
-        'user_id': user.id,
-        'allergies': _selectedAllergies,
-        'current_medicines': _selectedMedicalConditions,
-        'emergency_contact_name': _emergencyNameController.text.trim(),
-        'emergency_contact_number': _emergencyPhoneController.text.trim(),
-      };
-
-      final supabase = Supabase.instance.client;
-
-      // 3) Upsert profile to Supabase
-      final profileResp = await supabase
-          .from('profiles')
-          .upsert(profile)
-          .select(); // returns inserted/updated rows
-
-      // 4) Upsert medical_info
-      final medicalResp = await supabase
-          .from('medical_info')
-          .upsert(medical)
-          .select();
-
-      // 5) Save to local DB (cache)
-      final uname = profile['name'] as String;
-      final uage = profile['age'] as int;
-      final gender = profile['gender'] as String;
-      final uheight = (profile['height'] is double)
-          ? (profile['height'] as double).toInt()
-          : int.tryParse(_heightController.text) ?? 0;
-      final uweight = (profile['weight'] is double)
-          ? (profile['weight'] as double).toInt()
-          : int.tryParse(_weightController.text) ?? 0;
-      final ublood = profile['blood_group'] as String;
-
-      await dbref!.addUser(
+      // Save complete profile to local database
+      final success = await dbref!.saveCompleteUserProfile(
         name: uname,
         age: uage,
         gender: gender,
         height: uheight,
         weight: uweight,
         blood: ublood,
+        allergies: _selectedAllergies.isNotEmpty ? _selectedAllergies : null,
+        healthIssues: _selectedMedicalConditions.isNotEmpty ? _selectedMedicalConditions : null,
+        emergencyContactName: emergencyName,
+        emergencyContactPhone: emergencyPhone,
+        emergencyContactRelationship: emergencyRelationship,
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile saved to cloud and cached locally.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      navigator.pushReplacementNamed('/navigator-bar');
-    } catch (e) {
-      // Fallback: offline or Supabase error — save locally
-      try {
-        final uname = _nameController.text.trim();
-        final uage = int.tryParse(_ageController.text) ?? 0;
-        final gender = _selectedGender;
-        final uheight = int.tryParse(_heightController.text) ?? 0;
-        final uweight = int.tryParse(_weightController.text) ?? 0;
-        final ublood = _selectedBloodType;
-
-        await dbref!.addUser(
-          name: uname,
-          age: uage,
-          gender: gender,
-          height: uheight,
-          weight: uweight,
-          blood: ublood,
-        );
+      if (success) {
+        String message = savedToSupabase
+            ? 'Profile saved to cloud and cached locally!'
+            : 'Profile saved locally. Will sync to cloud when online.';
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Saved locally. Will sync to cloud when online. (${e.toString()})'),
-            backgroundColor: Colors.orange,
+            content: Text(message),
+            backgroundColor: savedToSupabase ? Colors.green : Colors.orange,
           ),
         );
 
         navigator.pushReplacementNamed('/navigator-bar');
-      } catch (localSaveError) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save profile: $localSaveError'),
+          const SnackBar(
+            content: Text('Failed to save profile. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } catch (e) {
+      print("Error in _completeSetup: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -831,6 +823,29 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               labelText: 'Phone Number *',
               prefixText: '+91 ',
               prefixIcon: const Icon(Icons.phone),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Color(0xFF2563EB)),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Emergency contact relationship
+          TextFormField(
+            controller: _relationshipController,
+            decoration: InputDecoration(
+              labelText: 'Relationship (optional)',
+              hintText: 'e.g., Parent, Spouse, Sibling',
+              prefixIcon: const Icon(Icons.family_restroom),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),

@@ -1,8 +1,16 @@
 // lib/providers/dashboard_provider.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../data/local/db_helper.dart';
 
 class DashboardProvider extends ChangeNotifier {
+
+  File? _profileImage;
+
+  File? get profileImage => _profileImage;
+
+
   final DBHelper dbref = DBHelper.getInstance;
 
   Map<String, dynamic>? userinfo;
@@ -26,6 +34,13 @@ class DashboardProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print("Error loading data: $e");
+    }
+
+    if (userinfo != null && userinfo![DBHelper.COL_PROFILE_IMAGE] != null) {
+      final imagePath = userinfo![DBHelper.COL_PROFILE_IMAGE];
+      if (File(imagePath).existsSync()) {
+        _profileImage = File(imagePath);
+      }
     }
   }
 

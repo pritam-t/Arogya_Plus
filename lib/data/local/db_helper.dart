@@ -206,6 +206,74 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
+  // Batch save complete user profile data
+  Future<bool> saveCompleteUserProfile({
+    required String name,
+    required int age,
+    required String gender,
+    required int height,
+    required int weight,
+    required String blood,
+    String? profileImage,
+    List<String>? allergies,
+    List<String>? healthIssues,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
+    String? emergencyContactRelationship,
+  }) async {
+    var db = await getDB();
+
+    try {
+      await db.transaction((txn) async {
+        // 1. Insert user
+        int userId = await txn.insert(USERS_TABLE, {
+          COL_NAME: name,
+          COL_AGE: age,
+          COL_GENDER: gender,
+          COL_HEIGHT: height,
+          COL_WEIGHT: weight,
+          COL_BLOOD: blood,
+          COL_PROFILE_IMAGE: profileImage,
+        });
+
+        // 2. Insert allergies
+        if (allergies != null && allergies.isNotEmpty) {
+          for (String allergy in allergies) {
+            await txn.insert(ALLERGIES_TABLE, {
+              COL_ALLERGY_NAME: allergy,
+              COL_ALLERGY_SEVERITY: 'Moderate', // Default severity
+              COL_ALLERGY_DATE_ADDED: DateTime.now().millisecondsSinceEpoch,
+            });
+          }
+        }
+
+        // 3. Insert health issues
+        if (healthIssues != null && healthIssues.isNotEmpty) {
+          for (String issue in healthIssues) {
+            await txn.insert(HEALTH_ISSUES_TABLE, {
+              COL_HEALTH_ISSUE: issue,
+              COL_HEALTH_DATE_ADDED: DateTime.now().millisecondsSinceEpoch,
+            });
+          }
+        }
+
+        // 4. Insert emergency contact
+        if (emergencyContactName != null && emergencyContactPhone != null) {
+          await txn.insert(EMERGENCY_CONTACTS_TABLE, {
+            COL_EMERGENCY_NAME: emergencyContactName,
+            COL_EMERGENCY_PHONE: emergencyContactPhone,
+            COL_EMERGENCY_RELATIONSHIP: emergencyContactRelationship ?? 'Emergency Contact',
+            COL_EMERGENCY_IS_PRIMARY: 1, // First contact is primary
+          });
+        }
+      });
+      return true;
+    } catch (e) {
+      print("Error saving complete profile: $e");
+      return false;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getUsers() async {
     var db = await getDB();
     return await db.query(USERS_TABLE);
@@ -244,7 +312,8 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<bool> updateUserProfileImage({required int id, String? profileImage}) async {
+  Future<bool> updateUserProfileImage({required int id, String? profileImage}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.update(
       USERS_TABLE,
@@ -255,7 +324,8 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<bool> deleteUser({required int id}) async {
+  Future<bool> deleteUser({required int id}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.delete(
       USERS_TABLE,
@@ -267,7 +337,8 @@ class DBHelper {
 
   // --------------------- HEALTH ISSUES ---------------------
 
-  Future<bool> addHealthIssue({required String healthIssue}) async {
+  Future<bool> addHealthIssue({required String healthIssue}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.insert(HEALTH_ISSUES_TABLE, {
       COL_HEALTH_ISSUE: healthIssue,
@@ -276,12 +347,14 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<List<Map<String, dynamic>>> getAllHealthIssues() async {
+  Future<List<Map<String, dynamic>>> getAllHealthIssues() async
+  {
     var db = await getDB();
     return await db.query(HEALTH_ISSUES_TABLE, orderBy: "$COL_HEALTH_DATE_ADDED DESC");
   }
 
-  Future<bool> deleteHealthIssue({required int id}) async {
+  Future<bool> deleteHealthIssue({required int id}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.delete(
       HEALTH_ISSUES_TABLE,
@@ -296,9 +369,11 @@ class DBHelper {
   Future<bool> addAllergy({
     required String allergyName,
     required String severity,
-  }) async {
+  }) async
+  {
     var db = await getDB();
-    int rowsAffected = await db.insert(ALLERGIES_TABLE, {
+    int rowsAffected = await db.insert(ALLERGIES_TABLE,
+        {
       COL_ALLERGY_NAME: allergyName,
       COL_ALLERGY_SEVERITY: severity,
       COL_ALLERGY_DATE_ADDED: DateTime.now().millisecondsSinceEpoch,
@@ -306,12 +381,14 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<List<Map<String, dynamic>>> getAllAllergies() async {
+  Future<List<Map<String, dynamic>>> getAllAllergies() async
+  {
     var db = await getDB();
     return await db.query(ALLERGIES_TABLE, orderBy: "$COL_ALLERGY_DATE_ADDED DESC");
   }
 
-  Future<bool> deleteAllergy({required int id}) async {
+  Future<bool> deleteAllergy({required int id}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.delete(
       ALLERGIES_TABLE,
@@ -328,7 +405,8 @@ class DBHelper {
     required String phoneNumber,
     required String relationship,
     bool isPrimary = false,
-  }) async {
+  }) async
+  {
     var db = await getDB();
 
     // If this is set as primary, make all others non-primary
@@ -364,7 +442,8 @@ class DBHelper {
     required String phoneNumber,
     required String relationship,
     bool isPrimary = false,
-  }) async {
+  }) async
+  {
     var db = await getDB();
 
     // If this is set as primary, make all others non-primary
@@ -391,7 +470,8 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<bool> deleteEmergencyContact({required int id}) async {
+  Future<bool> deleteEmergencyContact({required int id}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.delete(
       EMERGENCY_CONTACTS_TABLE,
@@ -407,7 +487,8 @@ class DBHelper {
     required String dosage,
     required int time,
     required bool isTaken,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.insert(MEDICATION_TABLE, {
       COL_MED_NAME: name,
@@ -429,7 +510,8 @@ class DBHelper {
     required String dosage,
     required int time,
     required bool isTaken,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.update(
       MEDICATION_TABLE,
@@ -445,7 +527,8 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<bool> deleteMedication({required int id}) async {
+  Future<bool> deleteMedication({required int id}) async
+  {
     var db = await getDB();
     int rowsAffected = await db.delete(
       MEDICATION_TABLE,
@@ -455,7 +538,8 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<bool> toggleMedicationStatus(int id, bool isTaken) async {
+  Future<bool> toggleMedicationStatus(int id, bool isTaken) async
+  {
     var db = await getDB();
     int rows = await db.update(
       MEDICATION_TABLE,
@@ -474,7 +558,8 @@ class DBHelper {
     required int date,
     required String time,
     required String type,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.insert(APPOINTMENTS_TABLE, {
       COL_APPOINT_DOCTOR: doctor,
@@ -486,7 +571,8 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  Future<List<Map<String, dynamic>>> getAllAppointments() async {
+  Future<List<Map<String, dynamic>>> getAllAppointments() async
+  {
     var db = await getDB();
     return await db.query(
       APPOINTMENTS_TABLE,
@@ -500,7 +586,8 @@ class DBHelper {
     required String specialty,
     required int date,
     required String time,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     int rowsAffected = await db.update(
       APPOINTMENTS_TABLE,

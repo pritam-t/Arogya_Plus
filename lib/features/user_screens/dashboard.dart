@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../Provider/Dashboard/DashboardProvider.dart';
@@ -15,7 +14,8 @@ class UserDashBoard extends StatelessWidget {
       TextEditingController nameController,
       TextEditingController dosageController,
       TextEditingController conditionController,
-      TimeOfDay selectedTime) async {
+      TimeOfDay selectedTime) async
+  {
 
     final String dosage = dosageController.text.isNotEmpty && conditionController.text.isNotEmpty
         ? 'Dosage: ${dosageController.text}, Condition: ${conditionController.text}'
@@ -295,7 +295,7 @@ class UserDashBoard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(screenWidth * 0.08),
                     ),
                     child:_buildProfileImage(screenWidth),
-        ),
+                  ),
 
                   SizedBox(width: screenWidth * 0.04),
 
@@ -372,10 +372,31 @@ class UserDashBoard extends StatelessWidget {
                   spacing: screenWidth * 0.025,
                   runSpacing: screenHeight * 0.01,
                   children: [
-                    _buildSimpleConditionChip("Asthma", screenWidth),
-                    _buildSimpleConditionChip("High BP", screenWidth),
+                    // Conditions
+                    if (userinfo?['conditions'] != null &&
+                        userinfo!['conditions'].toString().isNotEmpty)
+                      ...(userinfo!['conditions'] as String)
+                          .split(",")
+                          .map((c) => _buildSimpleConditionChip(c.trim(), screenWidth))
+                          .toList(),
+
+                    // Allergies
+                    if (userinfo?['allergies'] != null &&
+                        userinfo!['allergies'].toString().isNotEmpty)
+                      ...(userinfo!['allergies'] as String)
+                          .split(",")
+                          .map((a) => _buildSimpleConditionChip("Allergy: ${a.trim()}", screenWidth))
+                          .toList(),
+
+                    // Fallback when both empty
+                    if ((userinfo?['conditions'] == null ||
+                        userinfo!['conditions'].toString().isEmpty) &&
+                        (userinfo?['allergies'] == null ||
+                            userinfo!['allergies'].toString().isEmpty))
+                      _buildSimpleConditionChip("No conditions", screenWidth),
                   ],
                 ),
+
               ),
             ],
           ),
@@ -429,6 +450,7 @@ class UserDashBoard extends StatelessWidget {
     }
     return null;
   }
+
   Widget _buildInfoChip({
     required IconData icon,
     required String text,
@@ -488,8 +510,12 @@ class UserDashBoard extends StatelessWidget {
   }
 
   Widget _buildHealthOverview() {
-    return Builder(
-      builder: (context) {
+    return Consumer<DashboardProvider>(
+      builder: (context, provider, child) {
+        final medsTaken = provider.medications
+            .where((m) => m[DBHelper.COL_MED_IS_TAKEN] == 1)
+            .length;
+
         return Container(
           padding: const EdgeInsets.all(AppTheme.spacingM),
           decoration: BoxDecoration(
@@ -514,7 +540,13 @@ class UserDashBoard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppTheme.spacingM),
-              _buildOverviewCard("12", "Meds Taken", "This Week", Icons.medication, AppTheme.successColor),
+              _buildOverviewCard(
+                medsTaken.toString(),
+                "Meds Taken",
+                "This Week", // you can later calculate by filtering by date
+                Icons.medication,
+                AppTheme.successColor,
+              ),
               const SizedBox(height: AppTheme.spacingM),
               _buildViewDetailsButton(context),
             ],
@@ -692,7 +724,8 @@ class UserDashBoard extends StatelessWidget {
   }
 
   Widget _buildCompactMedicationItem(BuildContext context, Map<String, dynamic> medication,
-      int index, bool isLast, DashboardProvider provider) {
+      int index, bool isLast, DashboardProvider provider)
+  {
     final bool isTaken = medication[DBHelper.COL_MED_IS_TAKEN] == 1;
     final int timeStamp = medication[DBHelper.COL_MED_TIME];
     final medicationDateTime = DateTime.fromMillisecondsSinceEpoch(timeStamp);
