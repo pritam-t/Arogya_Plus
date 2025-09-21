@@ -18,10 +18,11 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
   Map<String, dynamic>? userinfo;
   final DBHelper dbref = DBHelper.getInstance;
   bool isEditing = false;
+  bool _isSaving = false;
+  bool _isImageUpdating = false;
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
   late AnimationController _fadeController;
-  late AnimationController _scaleController;
 
   // Controllers for editable fields
   late TextEditingController nameController;
@@ -38,6 +39,10 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   bool isLoading = true;
 
+  // Valid blood types for validation
+  final List<String> validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  final List<String> validGenders = ['Male', 'Female', 'Other'];
+
   @override
   void initState() {
     super.initState();
@@ -49,10 +54,6 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
   void _initializeAnimations() {
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 200),
       vsync: this,
     );
     _fadeController.forward();
@@ -76,16 +77,19 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     weightController.dispose();
     bloodController.dispose();
     _fadeController.dispose();
-    _scaleController.dispose();
     super.dispose();
   }
 
   Future<void> loadUserData() async {
+    if (!mounted) return;
+
     try {
       final users = await dbref.getUsers();
       final healthData = await dbref.getAllHealthIssues();
       final allergyData = await dbref.getAllAllergies();
       final contactData = await dbref.getAllEmergencyContacts();
+
+      if (!mounted) return;
 
       setState(() {
         if (users.isNotEmpty) {
@@ -100,10 +104,12 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
       });
     } catch (e) {
       print("Error loading data: $e");
-      _showSnackBar("Error loading data", isError: true);
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        _showSnackBar("Error loading data", isError: true);
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -127,6 +133,16 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   Future<String?> _saveImageToAppDirectory(File imageFile) async {
     try {
+      // Delete old image first to prevent accumulation
+      final oldImagePath = userinfo?[DBHelper.COL_PROFILE_IMAGE];
+      if (oldImagePath != null && File(oldImagePath).existsSync()) {
+        try {
+          await File(oldImagePath).delete();
+        } catch (e) {
+          print('Warning: Could not delete old profile image: $e');
+        }
+      }
+
       final Directory appDir = await getApplicationDocumentsDirectory();
       final String fileName = 'profile_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final String newPath = '${appDir.path}/$fileName';
@@ -141,7 +157,13 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
   }
 
   Future<void> _pickImage(ImageSource source) async {
+    if (_isImageUpdating) return;
+
     try {
+      setState(() {
+        _isImageUpdating = true;
+      });
+
       final XFile? image = await _picker.pickImage(
         source: source,
         imageQuality: 80,
@@ -153,31 +175,51 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
         final File tempImage = File(image.path);
         final String? savedPath = await _saveImageToAppDirectory(tempImage);
 
-        if (savedPath != null) {
+        if (savedPath != null && mounted) {
           setState(() {
             _profileImage = File(savedPath);
           });
 
           await dbref.updateUserProfileImage(
             id: userinfo![DBHelper.COL_ID],
-            profileImage: savedPath, // Now this is a permanent path
+            profileImage: savedPath,
           );
-          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-          loadUserData();
 
-          _showSnackBar("Profile picture updated successfully!");
-        } else {
+          if (mounted) {
+            Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+            await loadUserData();
+            _showSnackBar("Profile picture updated successfully!");
+          }
+        } else if (mounted) {
           _showSnackBar("Error saving image", isError: true);
         }
       }
     } catch (e) {
       print("Error picking image: $e");
-      _showSnackBar("Error selecting image", isError: true);
+      if (mounted) {
+        _showSnackBar("Error selecting image", isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isImageUpdating = false;
+        });
+      }
     }
   }
 
   Future<void> _removeProfileImage() async {
     if (userinfo != null) {
+      // Delete the physical file
+      final oldImagePath = userinfo?[DBHelper.COL_PROFILE_IMAGE];
+      if (oldImagePath != null && File(oldImagePath).existsSync()) {
+        try {
+          await File(oldImagePath).delete();
+        } catch (e) {
+          print('Warning: Could not delete profile image file: $e');
+        }
+      }
+
       setState(() {
         _profileImage = null;
       });
@@ -191,52 +233,105 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     }
   }
 
+  String? _validatePhoneNumber(String phone) {
+    if (phone.trim().isEmpty) return 'Phone number is required';
+    // Basic phone number validation - adjust regex based on your requirements
+    if (!RegExp(r'^\+?[\d\s\-\(\)]+$').hasMatch(phone.trim())) {
+      return 'Please enter a valid phone number';
+    }
+    if (phone.trim().length < 10) {
+      return 'Phone number must be at least 10 digits';
+    }
+    return null;
+  }
+
+  bool _isDuplicateEmergencyContact(String phone, String name, {int? excludeId}) {
+    return emergencyContacts.any((contact) {
+      final contactId = contact[DBHelper.COL_EMERGENCY_ID];
+      final contactPhone = contact[DBHelper.COL_EMERGENCY_PHONE]?.toString().trim();
+      final contactName = contact[DBHelper.COL_EMERGENCY_NAME]?.toString().trim();
+
+      return (excludeId == null || contactId != excludeId) &&
+          (contactPhone == phone.trim() || contactName == name.trim());
+    });
+  }
+
   Future<void> _saveChanges() async {
-    if (userinfo == null) return;
+    if (userinfo == null || _isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
-      final age = int.tryParse(ageController.text);
-      final height = int.tryParse(heightController.text);
-      final weight = int.tryParse(weightController.text);
+      final age = int.tryParse(ageController.text.trim());
+      final height = int.tryParse(heightController.text.trim());
+      final weight = int.tryParse(weightController.text.trim());
+      final name = nameController.text.trim();
+      final gender = genderController.text.trim();
+      final blood = bloodController.text.trim().toUpperCase();
 
-      if (age == null || age <= 0) {
-        _showSnackBar("Please enter a valid age", isError: true);
-        return;
-      }
-      if (height == null || height <= 0) {
-        _showSnackBar("Please enter a valid height", isError: true);
-        return;
-      }
-      if (weight == null || weight <= 0) {
-        _showSnackBar("Please enter a valid weight", isError: true);
-        return;
-      }
-      if (nameController.text.trim().isEmpty) {
+      // Validation
+      if (name.isEmpty) {
         _showSnackBar("Name cannot be empty", isError: true);
+        return;
+      }
+      if (name.length > 50) {
+        _showSnackBar("Name is too long (max 50 characters)", isError: true);
+        return;
+      }
+      if (age == null || age <= 0 || age > 150) {
+        _showSnackBar("Please enter a valid age (1-150)", isError: true);
+        return;
+      }
+      if (gender.isNotEmpty && !validGenders.contains(gender)) {
+        _showSnackBar("Please select a valid gender", isError: true);
+        return;
+      }
+      if (height == null || height <= 0 || height > 300) {
+        _showSnackBar("Please enter a valid height (1-300 cm)", isError: true);
+        return;
+      }
+      if (weight == null || weight <= 0 || weight > 500) {
+        _showSnackBar("Please enter a valid weight (1-500 kg)", isError: true);
+        return;
+      }
+      if (blood.isNotEmpty && !validBloodTypes.contains(blood)) {
+        _showSnackBar("Please enter a valid blood type (A+, A-, B+, B-, AB+, AB-, O+, O-)", isError: true);
         return;
       }
 
       await dbref.updateUser(
         id: userinfo![DBHelper.COL_ID],
-        name: nameController.text.trim(),
+        name: name,
         age: age,
-        gender: genderController.text.trim(),
+        gender: gender,
         height: height,
         weight: weight,
-        blood: bloodController.text.trim(),
+        blood: blood,
         profileImage: _profileImage?.path,
       );
 
-      setState(() {
-        isEditing = false;
-      });
+      if (mounted) {
+        setState(() {
+          isEditing = false;
+        });
 
-      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-      await loadUserData();
-      _showSnackBar("Profile updated successfully!");
+        Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+        await loadUserData();
+        _showSnackBar("Profile updated successfully!");
+      }
     } catch (e) {
       print("Error updating user: $e");
-      _showSnackBar("Error updating profile", isError: true);
+      if (mounted) {
+        _showSnackBar("Error updating profile", isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -245,89 +340,220 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     final result = await _showTextInputDialog(
       title: "Add Health Issue",
       hintText: "Enter health issue...",
+      maxLength: 100,
     );
-    if (result != null && result.isNotEmpty) {
-      await dbref.addHealthIssue(healthIssue: result);
-      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-      loadUserData();
-      _showSnackBar("Health issue added successfully!");
+    if (result != null && result.trim().isNotEmpty) {
+      try {
+        await dbref.addHealthIssue(healthIssue: result.trim());
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Health issue added successfully!");
+        }
+      } catch (e) {
+        print("Error adding health issue: $e");
+        if (mounted) {
+          _showSnackBar("Error adding health issue", isError: true);
+        }
+      }
     }
   }
 
   Future<void> _deleteHealthIssue(int id) async {
-    await dbref.deleteHealthIssue(id: id);
-    Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-    loadUserData();
-    _showSnackBar("Health issue removed");
+    final confirmed = await _showConfirmationDialog(
+      title: "Delete Health Issue",
+      message: "Are you sure you want to remove this health issue?",
+    );
+
+    if (confirmed == true) {
+      try {
+        await dbref.deleteHealthIssue(id: id);
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Health issue removed");
+        }
+      } catch (e) {
+        print("Error deleting health issue: $e");
+        if (mounted) {
+          _showSnackBar("Error removing health issue", isError: true);
+        }
+      }
+    }
   }
 
   // Allergy Methods
   Future<void> _addAllergy() async {
     final result = await _showAllergyDialog();
     if (result != null) {
-      await dbref.addAllergy(
-        allergyName: result['name'],
-        severity: result['severity'],
-      );
-      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-      loadUserData();
-      _showSnackBar("Allergy added successfully!");
+      try {
+        await dbref.addAllergy(
+          allergyName: result['name'],
+          severity: result['severity'],
+        );
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Allergy added successfully!");
+        }
+      } catch (e) {
+        print("Error adding allergy: $e");
+        if (mounted) {
+          _showSnackBar("Error adding allergy", isError: true);
+        }
+      }
     }
   }
 
   Future<void> _deleteAllergy(int id) async {
-    await dbref.deleteAllergy(id: id);
-    Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-    loadUserData();
-    _showSnackBar("Allergy removed");
+    final confirmed = await _showConfirmationDialog(
+      title: "Delete Allergy",
+      message: "Are you sure you want to remove this allergy?",
+    );
+
+    if (confirmed == true) {
+      try {
+        await dbref.deleteAllergy(id: id);
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Allergy removed");
+        }
+      } catch (e) {
+        print("Error deleting allergy: $e");
+        if (mounted) {
+          _showSnackBar("Error removing allergy", isError: true);
+        }
+      }
+    }
   }
 
   Future<void> _addEmergencyContact() async {
     final result = await _showEmergencyContactDialog();
     if (result != null) {
-      await dbref.addEmergencyContact(
-        contactName: result['name'],
-        phoneNumber: result['phone'],
-        relationship: result['relationship'],
-        isPrimary: result['isPrimary'],
-      );
-      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-      loadUserData();
-      _showSnackBar("Emergency contact added successfully!");
+      final phoneError = _validatePhoneNumber(result['phone']);
+      if (phoneError != null) {
+        _showSnackBar(phoneError, isError: true);
+        return;
+      }
+
+      if (_isDuplicateEmergencyContact(result['phone'], result['name'])) {
+        _showSnackBar("Contact with this name or phone already exists", isError: true);
+        return;
+      }
+
+      try {
+        await dbref.addEmergencyContact(
+          contactName: result['name'],
+          phoneNumber: result['phone'],
+          relationship: result['relationship'],
+          isPrimary: result['isPrimary'],
+        );
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Emergency contact added successfully!");
+        }
+      } catch (e) {
+        print("Error adding emergency contact: $e");
+        if (mounted) {
+          _showSnackBar("Error adding emergency contact", isError: true);
+        }
+      }
     }
   }
 
   Future<void> _editEmergencyContact(Map<String, dynamic> contact) async {
     final result = await _showEmergencyContactDialog(contact: contact);
     if (result != null) {
-      await dbref.updateEmergencyContact(
-        id: contact[DBHelper.COL_EMERGENCY_ID],
-        contactName: result['name'],
-        phoneNumber: result['phone'],
-        relationship: result['relationship'],
-        isPrimary: result['isPrimary'],
-      );
-      Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+      final phoneError = _validatePhoneNumber(result['phone']);
+      if (phoneError != null) {
+        _showSnackBar(phoneError, isError: true);
+        return;
+      }
 
-      loadUserData();
-      _showSnackBar("Emergency contact updated successfully!");
+      final contactId = contact[DBHelper.COL_EMERGENCY_ID];
+      if (_isDuplicateEmergencyContact(result['phone'], result['name'], excludeId: contactId)) {
+        _showSnackBar("Contact with this name or phone already exists", isError: true);
+        return;
+      }
+
+      try {
+        await dbref.updateEmergencyContact(
+          id: contactId,
+          contactName: result['name'],
+          phoneNumber: result['phone'],
+          relationship: result['relationship'],
+          isPrimary: result['isPrimary'],
+        );
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Emergency contact updated successfully!");
+        }
+      } catch (e) {
+        print("Error updating emergency contact: $e");
+        if (mounted) {
+          _showSnackBar("Error updating emergency contact", isError: true);
+        }
+      }
     }
   }
 
   Future<void> _deleteEmergencyContact(int id) async {
-    await dbref.deleteEmergencyContact(id: id);
-    Provider.of<DashboardProvider>(context, listen: false).loadAllData();
-    loadUserData();
-    _showSnackBar("Emergency contact removed");
+    final confirmed = await _showConfirmationDialog(
+      title: "Delete Emergency Contact",
+      message: "Are you sure you want to remove this emergency contact?",
+    );
+
+    if (confirmed == true) {
+      try {
+        await dbref.deleteEmergencyContact(id: id);
+        if (mounted) {
+          Provider.of<DashboardProvider>(context, listen: false).loadAllData();
+          await loadUserData();
+          _showSnackBar("Emergency contact removed");
+        }
+      } catch (e) {
+        print("Error deleting emergency contact: $e");
+        if (mounted) {
+          _showSnackBar("Error removing emergency contact", isError: true);
+        }
+      }
+    }
   }
 
   // Dialog Methods
+  Future<bool?> _showConfirmationDialog({
+    required String title,
+    required String message,
+  }) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<String?> _showTextInputDialog({
     required String title,
     required String hintText,
     String? initialValue,
-  }) async
-  {
+    int? maxLength,
+  }) async {
     final controller = TextEditingController(text: initialValue);
     return showDialog<String>(
       context: context,
@@ -335,6 +561,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
         title: Text(title),
         content: TextField(
           controller: controller,
+          maxLength: maxLength,
           decoration: InputDecoration(hintText: hintText),
         ),
         actions: [
@@ -343,7 +570,12 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text),
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                Navigator.pop(context, text);
+              }
+            },
             child: const Text("Add"),
           ),
         ],
@@ -365,6 +597,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
             children: [
               TextField(
                 controller: nameController,
+                maxLength: 50,
                 decoration: const InputDecoration(hintText: "Allergy name..."),
               ),
               const SizedBox(height: 16),
@@ -384,10 +617,15 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
               child: const Text("Cancel"),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, {
-                'name': nameController.text,
-                'severity': severity,
-              }),
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isNotEmpty) {
+                  Navigator.pop(context, {
+                    'name': name,
+                    'severity': severity,
+                  });
+                }
+              },
               child: const Text("Add"),
             ),
           ],
@@ -398,8 +636,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
   Future<Map<String, dynamic>?> _showEmergencyContactDialog({
     Map<String, dynamic>? contact,
-  }) async
-  {
+  }) async {
     final nameController = TextEditingController(
         text: contact?[DBHelper.COL_EMERGENCY_NAME] ?? '');
     final phoneController = TextEditingController(
@@ -413,35 +650,40 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(contact == null ? "Add Emergency Contact" : "Edit Emergency Contact"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(hintText: "Contact name..."),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(hintText: "Phone number..."),
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: relationshipController,
-                decoration: const InputDecoration(hintText: "Relationship..."),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Checkbox(
-                    value: isPrimary,
-                    onChanged: (value) => setState(() => isPrimary = value!),
-                  ),
-                  const Text("Primary Contact"),
-                ],
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  maxLength: 50,
+                  decoration: const InputDecoration(hintText: "Contact name..."),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  maxLength: 15,
+                  decoration: const InputDecoration(hintText: "Phone number..."),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: relationshipController,
+                  maxLength: 30,
+                  decoration: const InputDecoration(hintText: "Relationship..."),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: isPrimary,
+                      onChanged: (value) => setState(() => isPrimary = value!),
+                    ),
+                    const Text("Primary Contact"),
+                  ],
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -449,12 +691,20 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
               child: const Text("Cancel"),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, {
-                'name': nameController.text,
-                'phone': phoneController.text,
-                'relationship': relationshipController.text,
-                'isPrimary': isPrimary,
-              }),
+              onPressed: () {
+                final name = nameController.text.trim();
+                final phone = phoneController.text.trim();
+                final relationship = relationshipController.text.trim();
+
+                if (name.isNotEmpty && phone.isNotEmpty && relationship.isNotEmpty) {
+                  Navigator.pop(context, {
+                    'name': name,
+                    'phone': phone,
+                    'relationship': relationship,
+                    'isPrimary': isPrimary,
+                  });
+                }
+              },
               child: Text(contact == null ? "Add" : "Update"),
             ),
           ],
@@ -501,12 +751,26 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
     if (confirmed == true && userinfo != null) {
       try {
+        // Clean up profile image before deleting user
+        final profileImagePath = userinfo![DBHelper.COL_PROFILE_IMAGE];
+        if (profileImagePath != null && File(profileImagePath).existsSync()) {
+          try {
+            await File(profileImagePath).delete();
+          } catch (e) {
+            print('Warning: Could not delete profile image: $e');
+          }
+        }
+
         await dbref.deleteUser(id: userinfo![DBHelper.COL_ID]);
-        _showSnackBar("Account deleted successfully");
-        Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
+        if (mounted) {
+          _showSnackBar("Account deleted successfully");
+          Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
+        }
       } catch (e) {
         print("Error deleting user: $e");
-        _showSnackBar("Error deleting account", isError: true);
+        if (mounted) {
+          _showSnackBar("Error deleting account", isError: true);
+        }
       }
     }
   }
@@ -545,16 +809,22 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
 
     if (confirmed == true) {
       try {
-        _showSnackBar("Logged out successfully");
-        Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
+        if (mounted) {
+          _showSnackBar("Logged out successfully");
+          Navigator.pushNamedAndRemoveUntil(context, "/login", (route) => false);
+        }
       } catch (e) {
         print("Error during logout: $e");
-        _showSnackBar("Error logging out", isError: true);
+        if (mounted) {
+          _showSnackBar("Error logging out", isError: true);
+        }
       }
     }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -656,28 +926,51 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          // Profile Picture with Long Press
+          // Profile Picture with Long Press and Loading State
           GestureDetector(
-            onLongPress: () => _showImagePickerBottomSheet(),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
+            onLongPress: _isImageUpdating ? null : () => _showImagePickerBottomSheet(),
+            child: Stack(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
-                child: _profileImage == null
-                    ? Icon(Icons.person, size: 40, color: Colors.grey[400])
-                    : null,
-              ),
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.grey[200],
+                    backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
+                    child: _profileImage == null
+                        ? Icon(Icons.person, size: 40, color: Colors.grey[400])
+                        : null,
+                  ),
+                ),
+                if (_isImageUpdating)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black54,
+                      ),
+                      child: const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: 20),
@@ -705,9 +998,9 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
               ],
             ),
           ),
-          // Small Edit Button
+          // Small Edit Button with Loading State
           IconButton(
-            onPressed: () {
+            onPressed: _isSaving ? null : () {
               if (isEditing) {
                 _saveChanges();
               } else {
@@ -716,7 +1009,13 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
                 });
               }
             },
-            icon: Icon(
+            icon: _isSaving
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+                : Icon(
               isEditing ? Icons.save : Icons.edit,
               color: isEditing ? Colors.green : Colors.blue,
             ),
@@ -731,6 +1030,8 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
   }
 
   Future<void> _showImagePickerBottomSheet() async {
+    if (_isImageUpdating) return;
+
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -816,8 +1117,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     required String title,
     required VoidCallback onTap,
     Color? color,
-  })
-  {
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
@@ -896,8 +1196,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
     required List<Map<String, dynamic>> items,
     required VoidCallback onAdd,
     required Widget Function(Map<String, dynamic>) itemBuilder,
-  })
-  {
+  }) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1158,8 +1457,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
       bool editable, [
         TextInputType? keyboardType,
         String? suffix,
-      ])
-  {
+      ]) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(
@@ -1240,7 +1538,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
             children: [
               Expanded(
                 child: Container(
-                  height: 50,
+                  height: 60,
                   child: ElevatedButton.icon(
                     onPressed: _logout,
                     icon: const Icon(Icons.logout, size: 20),
@@ -1260,7 +1558,7 @@ class _UserSetting_ScreenState extends State<UserSetting_Screen>
               const SizedBox(width: 15),
               Expanded(
                 child: Container(
-                  height: 50,
+                  height: 60,
                   child: ElevatedButton.icon(
                     onPressed: _deleteAccount,
                     icon: const Icon(Icons.delete_forever, size: 20),

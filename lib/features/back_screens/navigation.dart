@@ -85,7 +85,7 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
                 style: TextStyle(
                   fontSize: screenWidth * 0.06,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Colors.black,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

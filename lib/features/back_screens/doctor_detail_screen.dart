@@ -1,13 +1,10 @@
-  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
   import 'package:url_launcher/url_launcher_string.dart';
-  
   import '../../Provider/Dashboard/DashboardProvider.dart';
-import '../../data/local/db_helper.dart';
 import '../../main.dart';
 import 'navigation.dart';
-  // Import your main.dart file to access AppTheme
-  
+
   class DoctorDetailsScreen extends StatelessWidget {
     final Map<String, dynamic> doctor;
   

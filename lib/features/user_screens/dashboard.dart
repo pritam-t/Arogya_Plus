@@ -10,43 +10,7 @@ import 'package:intl/intl.dart';
 class UserDashBoard extends StatelessWidget {
   const UserDashBoard({super.key});
 
-  void _addMedication(BuildContext context, DashboardProvider provider,
-      TextEditingController nameController,
-      TextEditingController dosageController,
-      TextEditingController conditionController,
-      TimeOfDay selectedTime) async
-  {
-
-    final String dosage = dosageController.text.isNotEmpty && conditionController.text.isNotEmpty
-        ? 'Dosage: ${dosageController.text}, Condition: ${conditionController.text}'
-        : dosageController.text.isNotEmpty ? 'Dosage: ${dosageController.text}' : conditionController.text.isNotEmpty
-        ? 'Condition: ${conditionController.text}' : '';
-
-    final now = DateTime.now();
-    final medicationTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      selectedTime.hour,
-      selectedTime.minute,
-    );
-
-    // Check for duplicates
-    if (provider.medications.any((m) => m[DBHelper.COL_MED_NAME] == nameController.text.trim())) {
-      return;
-    }
-
-    await provider.addMedication(
-      name: nameController.text,
-      dosage: dosage,
-      time: medicationTime.millisecondsSinceEpoch,
-    );
-
-    _clearDialogFields(nameController, dosageController, conditionController);
-  }
-
   void _showAddMedicationDialog(BuildContext context) {
-    // Create controllers locally for the dialog
     final medicationNameController = TextEditingController();
     final dosageController = TextEditingController();
     final conditionController = TextEditingController();
@@ -54,6 +18,7 @@ class UserDashBoard extends StatelessWidget {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -146,29 +111,45 @@ class UserDashBoard extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop();
-                    _clearDialogFields(medicationNameController, dosageController, conditionController);
+                    Navigator.of(dialogContext).pop();
+                    medicationNameController.clear();
+                    dosageController.clear();
+                    conditionController.clear();
                   },
                   child: Text('Cancel', style: TextStyle(color: AppTheme.textHint)),
                 ),
-                Consumer<DashboardProvider>(
-                  builder: (context, provider, child) => ElevatedButton(
-                    onPressed: () {
-                      if (medicationNameController.text.isNotEmpty) {
-                        _addMedication(context, provider, medicationNameController,
-                            dosageController, conditionController, selectedTime);
-                        Navigator.of(context).pop();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                ElevatedButton(
+                  onPressed: () {
+                    final name = medicationNameController.text.trim();
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a medication name')),
+                      );
+                      return;
+                    }
+
+                    // Close the dialog first
+                    Navigator.of(dialogContext).pop();
+
+                    // Add medication safely after frame
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      _addMedication(
+                        context,
+                        medicationNameController,
+                        dosageController,
+                        conditionController,
+                        selectedTime,
+                      );
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('Add Reminder'),
                   ),
+                  child: const Text('Add Reminder'),
                 ),
               ],
             );
@@ -176,46 +157,103 @@ class UserDashBoard extends StatelessWidget {
         );
       },
     ).then((_) {
-      // Dispose controllers when dialog is closed
       medicationNameController.dispose();
       dosageController.dispose();
       conditionController.dispose();
     });
   }
 
+  Future<void> _addMedication(
+      BuildContext scaffoldContext,
+      TextEditingController nameController,
+      TextEditingController dosageController,
+      TextEditingController conditionController,
+      TimeOfDay selectedTime,
+      ) async {
+    final provider = Provider.of<DashboardProvider>(scaffoldContext, listen: false);
+
+    final String dosage = (dosageController.text.isNotEmpty && conditionController.text.isNotEmpty)
+        ? 'Dosage: ${dosageController.text}, Condition: ${conditionController.text}'
+        : dosageController.text.isNotEmpty
+        ? 'Dosage: ${dosageController.text}'
+        : conditionController.text.isNotEmpty
+        ? 'Condition: ${conditionController.text}'
+        : '';
+
+    final now = DateTime.now();
+    final medicationTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    final medicationName = nameController.text.trim();
+    if (medicationName.isEmpty) return;
+
+    // Prevent duplicates
+    if (provider.medications.any((m) => m[DBHelper.COL_MED_NAME] == medicationName)) {
+      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+        const SnackBar(content: Text('Medication already exists!')),
+      );
+      return;
+    }
+
+    try {
+      await provider.addMedication(
+        name: medicationName,
+        dosage: dosage,
+        time: medicationTime.millisecondsSinceEpoch,
+      );
+
+      nameController.clear();
+      dosageController.clear();
+      conditionController.clear();
+    } catch (e) {
+      debugPrint("Error adding medication: $e");
+      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+        const SnackBar(content: Text('Failed to add medication')),
+      );
+    }
+  }
+
   void _confirmDeleteMedication(BuildContext context, int index) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (BuildContext dialogContext) => AlertDialog(
         title: const Text('Delete Medication'),
         content: const Text('Are you sure you want to delete this medication?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
-          Consumer<DashboardProvider>(
-            builder: (context, provider, child) => TextButton(
-              onPressed: () {
-                provider.deleteMedication(index);
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
+          TextButton(
+            onPressed: () async {
+              final provider = Provider.of<DashboardProvider>(context, listen: false);
+              await provider.deleteMedicationById(index);
+              Navigator.of(dialogContext).pop();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
   }
 
-  void _clearDialogFields(TextEditingController nameController,
+  void _clearDialogFields(
+      TextEditingController nameController,
       TextEditingController dosageController,
-      TextEditingController conditionController) {
+      TextEditingController conditionController,
+      )
+  {
     nameController.clear();
     dosageController.clear();
     conditionController.clear();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -750,7 +788,7 @@ class UserDashBoard extends StatelessWidget {
     final medicationTime = TimeOfDay.fromDateTime(medicationDateTime).format(context);
 
     return GestureDetector(
-      onTap: () => provider.toggleMedicationTaken(index),
+      onTap: () => provider.toggleMedicationTakenById(index),
       onLongPress: () => _confirmDeleteMedication(context, index),
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingM),
@@ -921,7 +959,7 @@ class UserDashBoard extends StatelessWidget {
         );
 
         if (confirmDelete == true) {
-          await provider.deleteAppointment(appointment['id']);
+          await provider.deleteAppointmentById(appointment['id']);
         }
       },
       child: Container(
@@ -988,7 +1026,7 @@ class UserDashBoard extends StatelessWidget {
 
             // Appointment Type (badge)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6 , vertical: 4),
               decoration: BoxDecoration(
                 color: AppTheme.warningColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
