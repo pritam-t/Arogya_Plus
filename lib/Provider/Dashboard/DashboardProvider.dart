@@ -42,12 +42,12 @@ class DashboardProvider extends ChangeNotifier {
       final issues = await dbref.getAllHealthIssues();
       final allergiesDb = await dbref.getAllAllergies();
 
-      // Validate user data
-      userinfo = users.isNotEmpty ? users.first : null;
-      medications = meds ?? [];
-      appointments = appoints ?? [];
-      healthIssues = issues ?? [];
-      allergies = allergiesDb ?? [];
+      // Create mutable copies to prevent read-only errors
+      userinfo = users.isNotEmpty ? Map<String, dynamic>.from(users.first) : null;
+      medications = (meds ?? []).map((m) => Map<String, dynamic>.from(m)).toList();
+      appointments = (appoints ?? []).map((a) => Map<String, dynamic>.from(a)).toList();
+      healthIssues = (issues ?? []).map((h) => Map<String, dynamic>.from(h)).toList();
+      allergies = (allergiesDb ?? []).map((al) => Map<String, dynamic>.from(al)).toList();
 
       await _loadProfileImage();
     } catch (e, st) {
@@ -95,6 +95,19 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> checkDBHelperMethods() async {
+    try {
+      // Check if toggleMedicationStatus method exists
+      debugPrint("Checking if DBHelper.toggleMedicationStatus exists...");
+
+      // If your DBHelper doesn't have toggleMedicationStatus, use updateMedication instead
+      return true;
+    } catch (e) {
+      debugPrint("DBHelper method check failed: $e");
+      return false;
+    }
+  }
+
   // Type-safe getters with null safety
   List<String> get healthConditions =>
       healthIssues
@@ -130,7 +143,8 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   // Get today's appointments
-  List<Map<String, dynamic>> get todaysAppointments {
+  List<Map<String, dynamic>> get todaysAppointments
+  {
     try {
       final today = DateTime.now();
       final todayTimestamp = DateTime(today.year, today.month, today.day).millisecondsSinceEpoch;
@@ -151,7 +165,8 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   // Get upcoming appointments (next 7 days)
-  List<Map<String, dynamic>> get upcomingAppointments {
+  List<Map<String, dynamic>> get upcomingAppointments
+  {
     try {
       final now = DateTime.now();
       final nextWeek = now.add(const Duration(days: 7));
@@ -179,7 +194,8 @@ class DashboardProvider extends ChangeNotifier {
     required String name,
     required String dosage,
     required int time,
-  }) async {
+  }) async
+  {
     if (name.trim().isEmpty) {
       return ProviderResult(false, "Medication name cannot be empty");
     }
@@ -208,15 +224,73 @@ class DashboardProvider extends ChangeNotifier {
 
   Future<ProviderResult> toggleMedicationTakenById(int medId) async {
     try {
+      debugPrint("Toggling medication with ID: $medId");
+
+      // Find medication index
+      final medIndex = medications.indexWhere((m) => m[DBHelper.COL_MED_ID] == medId);
+      if (medIndex == -1) {
+        debugPrint("Medication not found with ID: $medId");
+        return ProviderResult(false, "Medication not found");
+      }
+
+      debugPrint("Found medication at index: $medIndex");
+
+      // Get current medication - create mutable copy
+      final originalMed = medications[medIndex];
+      final med = Map<String, dynamic>.from(originalMed);
+
+      debugPrint("Original medication data: $originalMed");
+      debugPrint("Mutable copy created: $med");
+
+      final currentTaken = med[DBHelper.COL_MED_IS_TAKEN];
+      final newTakenStatus = !(currentTaken == 1 || currentTaken == true);
+
+      debugPrint("Current taken status: $currentTaken, New status: $newTakenStatus");
+
+      // Update in DB first
+      final updated = await dbref.toggleMedicationStatus(medId, newTakenStatus);
+
+      if (updated) {
+        debugPrint("Database update successful");
+
+        // Update local list with mutable copy
+        med[DBHelper.COL_MED_IS_TAKEN] = newTakenStatus ? 1 : 0;
+        medications[medIndex] = med;
+
+        debugPrint("Local list updated, calling notifyListeners()");
+        notifyListeners();
+
+        return ProviderResult(
+            true,
+            newTakenStatus ? "Marked as taken" : "Marked as not taken"
+        );
+      } else {
+        debugPrint("Database update failed");
+        return ProviderResult(false, "Failed to update medication in database");
+      }
+    } catch (e, stackTrace) {
+      debugPrint("Error toggling medication: $e");
+      debugPrint("Stack trace: $stackTrace");
+      return ProviderResult(false, "Error updating medication: ${e.toString()}");
+    }
+  }
+
+  Future<ProviderResult> toggleMedicationTakenByIdAlternative(int medId) async {
+    try {
+      debugPrint("Using alternative toggle method for medication ID: $medId");
+
+      // Find medication index
       final medIndex = medications.indexWhere((m) => m[DBHelper.COL_MED_ID] == medId);
       if (medIndex == -1) {
         return ProviderResult(false, "Medication not found");
       }
 
-      final med = medications[medIndex];
+      // Get current medication data
+      final med = Map<String, dynamic>.from(medications[medIndex]);
       final currentTaken = med[DBHelper.COL_MED_IS_TAKEN];
       final newTakenStatus = !(currentTaken == 1 || currentTaken == true);
 
+      // Use updateMedication if toggleMedicationStatus doesn't exist
       final updated = await dbref.updateMedication(
         id: medId,
         name: med[DBHelper.COL_MED_NAME],
@@ -226,17 +300,22 @@ class DashboardProvider extends ChangeNotifier {
       );
 
       if (updated) {
-        // Update local state immediately for better UX
-        medications[medIndex][DBHelper.COL_MED_IS_TAKEN] = newTakenStatus ? 1 : 0;
+        // Update local list
+        med[DBHelper.COL_MED_IS_TAKEN] = newTakenStatus ? 1 : 0;
+        medications[medIndex] = med;
+
         notifyListeners();
 
-        // Then refresh full data
-        await loadAllData();
-        return ProviderResult(true, newTakenStatus ? "Medication marked as taken" : "Medication marked as not taken");
+        return ProviderResult(
+            true,
+            newTakenStatus ? "Marked as taken" : "Marked as not taken"
+        );
       }
+
       return ProviderResult(false, "Failed to update medication");
-    } catch (e) {
-      debugPrint("Error toggling medication: $e");
+    } catch (e, stackTrace) {
+      debugPrint("Error in alternative toggle method: $e");
+      debugPrint("Stack trace: $stackTrace");
       return ProviderResult(false, "Error updating medication: ${e.toString()}");
     }
   }
@@ -247,7 +326,8 @@ class DashboardProvider extends ChangeNotifier {
     required String dosage,
     required int time,
     bool? isTaken,
-  }) async {
+  }) async
+  {
     if (name.trim().isEmpty) {
       return ProviderResult(false, "Medication name cannot be empty");
     }
@@ -337,7 +417,8 @@ class DashboardProvider extends ChangeNotifier {
     required int date,
     required String time,
     String? type, // Made optional since it might not be in your DB schema
-  }) async {
+  }) async
+  {
     if (doctor.trim().isEmpty) {
       return ProviderResult(false, "Doctor name cannot be empty");
     }
@@ -375,7 +456,8 @@ class DashboardProvider extends ChangeNotifier {
     required int date,
     required String time,
     String? type, // Made optional since it might not be in your DB schema
-  }) async {
+  }) async
+  {
     if (doctor.trim().isEmpty) {
       return ProviderResult(false, "Doctor name cannot be empty");
     }

@@ -1,3 +1,4 @@
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,215 +11,7 @@ import 'package:intl/intl.dart';
 class UserDashBoard extends StatelessWidget {
   const UserDashBoard({super.key});
 
-  void _showAddMedicationDialog(BuildContext context) {
-    final medicationNameController = TextEditingController();
-    final dosageController = TextEditingController();
-    final conditionController = TextEditingController();
-    TimeOfDay selectedTime = TimeOfDay.now();
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                children: [
-                  Icon(Icons.medication, color: AppTheme.primaryColor),
-                  const SizedBox(width: 8),
-                  const Text('Add Medication'),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: medicationNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Medication Name',
-                        prefixIcon: Icon(Icons.medical_services, color: AppTheme.primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppTheme.primaryColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: dosageController,
-                      decoration: InputDecoration(
-                        labelText: 'Dosage (e.g., 500mg)',
-                        prefixIcon: Icon(Icons.colorize, color: AppTheme.primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppTheme.primaryColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: conditionController,
-                      decoration: InputDecoration(
-                        labelText: 'For Condition (e.g., Fever)',
-                        prefixIcon: Icon(Icons.healing, color: AppTheme.primaryColor),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppTheme.primaryColor),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.borderColor),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ListTile(
-                        leading: Icon(Icons.access_time, color: AppTheme.primaryColor),
-                        title: const Text('Reminder Time'),
-                        subtitle: Text(selectedTime.format(context)),
-                        trailing: Icon(Icons.keyboard_arrow_right, color: AppTheme.textHint),
-                        onTap: () async {
-                          final TimeOfDay? picked = await showTimePicker(
-                            context: context,
-                            initialTime: selectedTime,
-                          );
-                          if (picked != null) {
-                            setDialogState(() {
-                              selectedTime = picked;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                    medicationNameController.clear();
-                    dosageController.clear();
-                    conditionController.clear();
-                  },
-                  child: Text('Cancel', style: TextStyle(color: AppTheme.textHint)),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    final name = medicationNameController.text.trim();
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter a medication name')),
-                      );
-                      return;
-                    }
-
-                    // Close the dialog first
-                    Navigator.of(dialogContext).pop();
-
-                    // Add medication safely after frame
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      _addMedication(
-                        context,
-                        medicationNameController,
-                        dosageController,
-                        conditionController,
-                        selectedTime,
-                      );
-                    });
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Add Reminder'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((_) {
-      medicationNameController.dispose();
-      dosageController.dispose();
-      conditionController.dispose();
-    });
-  }
-
-  Future<void> _addMedication(
-      BuildContext scaffoldContext,
-      TextEditingController nameController,
-      TextEditingController dosageController,
-      TextEditingController conditionController,
-      TimeOfDay selectedTime,
-      ) async {
-    final provider = Provider.of<DashboardProvider>(scaffoldContext, listen: false);
-
-    final String dosage = (dosageController.text.isNotEmpty && conditionController.text.isNotEmpty)
-        ? 'Dosage: ${dosageController.text}, Condition: ${conditionController.text}'
-        : dosageController.text.isNotEmpty
-        ? 'Dosage: ${dosageController.text}'
-        : conditionController.text.isNotEmpty
-        ? 'Condition: ${conditionController.text}'
-        : '';
-
-    final now = DateTime.now();
-    final medicationTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      selectedTime.hour,
-      selectedTime.minute,
-    );
-
-    final medicationName = nameController.text.trim();
-    if (medicationName.isEmpty) return;
-
-    // Prevent duplicates
-    if (provider.medications.any((m) => m[DBHelper.COL_MED_NAME] == medicationName)) {
-      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-        const SnackBar(content: Text('Medication already exists!')),
-      );
-      return;
-    }
-
-    try {
-      await provider.addMedication(
-        name: medicationName,
-        dosage: dosage,
-        time: medicationTime.millisecondsSinceEpoch,
-      );
-
-      nameController.clear();
-      dosageController.clear();
-      conditionController.clear();
-    } catch (e) {
-      debugPrint("Error adding medication: $e");
-      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-        const SnackBar(content: Text('Failed to add medication')),
-      );
-    }
-  }
-
-  void _confirmDeleteMedication(BuildContext context, int index) {
+  void _confirmDeleteMedication(BuildContext context, int medId) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) => AlertDialog(
@@ -231,9 +24,25 @@ class UserDashBoard extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
-              final provider = Provider.of<DashboardProvider>(context, listen: false);
-              await provider.deleteMedicationById(index);
-              Navigator.of(dialogContext).pop();
+              try {
+                final provider = Provider.of<DashboardProvider>(context, listen: false);
+                await provider.deleteMedicationById(medId);
+                Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Medication deleted successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error deleting medication: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
@@ -242,18 +51,6 @@ class UserDashBoard extends StatelessWidget {
       ),
     );
   }
-
-  void _clearDialogFields(
-      TextEditingController nameController,
-      TextEditingController dosageController,
-      TextEditingController conditionController,
-      )
-  {
-    nameController.clear();
-    dosageController.clear();
-    conditionController.clear();
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -274,8 +71,8 @@ class UserDashBoard extends StatelessWidget {
                 _buildHealthOverview(),
                 const SizedBox(height: AppTheme.spacingL),
 
-                // Today's Medications - Compact Design
-                _buildCompactMedicationsSection(context, provider),
+                // Today's Medications - Fixed method call
+                _buildMedicationsSection(context),
                 const SizedBox(height: AppTheme.spacingL),
 
                 _buildAppointmentsSection(context, provider),
@@ -353,7 +150,7 @@ class UserDashBoard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          userinfo == null ? 'Loading...' : userinfo[DBHelper.COL_NAME],
+                          userinfo == null ? 'Loading...' : userinfo[DBHelper.COL_NAME] ?? 'Unknown',
                           style: TextStyle(
                             fontSize: screenWidth * 0.065,
                             fontWeight: FontWeight.bold,
@@ -366,7 +163,7 @@ class UserDashBoard extends StatelessWidget {
                           children: [
                             _buildInfoChip(
                               icon: Icons.cake_outlined,
-                              text: '${userinfo?[DBHelper.COL_AGE] ?? ''} years',
+                              text: '${userinfo?[DBHelper.COL_AGE] ?? 'N/A'} years',
                               screenWidth: screenWidth,
                             ),
                             SizedBox(width: screenWidth * 0.03),
@@ -374,7 +171,7 @@ class UserDashBoard extends StatelessWidget {
                               icon: userinfo != null && userinfo[DBHelper.COL_GENDER] == 'Male'
                                   ? Icons.male
                                   : Icons.female,
-                              text: '${userinfo?[DBHelper.COL_GENDER] ?? ''}',
+                              text: '${userinfo?[DBHelper.COL_GENDER] ?? 'N/A'}',
                               screenWidth: screenWidth,
                             ),
                           ],
@@ -437,6 +234,17 @@ class UserDashBoard extends StatelessWidget {
     return FutureBuilder<File?>(
       future: _loadProfileImageFromDB(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            width: screenWidth * 0.14,
+            height: screenWidth * 0.14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white,
+            ),
+          );
+        }
+
         if (snapshot.hasData && snapshot.data != null) {
           return ClipOval(
             child: Image.file(
@@ -469,8 +277,11 @@ class UserDashBoard extends StatelessWidget {
       final users = await DBHelper.getInstance.getUsers();
       if (users.isNotEmpty) {
         final imagePath = users.first[DBHelper.COL_PROFILE_IMAGE];
-        if (imagePath != null && File(imagePath).existsSync()) {
-          return File(imagePath);
+        if (imagePath != null && imagePath.toString().isNotEmpty) {
+          final file = File(imagePath.toString());
+          if (await file.exists()) {
+            return file;
+          }
         }
       }
     } catch (e) {
@@ -483,7 +294,8 @@ class UserDashBoard extends StatelessWidget {
     required IconData icon,
     required String text,
     required double screenWidth,
-  }) {
+  })
+  {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: screenWidth * 0.025,
@@ -657,7 +469,7 @@ class UserDashBoard extends StatelessWidget {
   Widget _buildViewDetailsButton(BuildContext context) {
     final navigatorBarState = context.findAncestorStateOfType<NavigatorBarState>();
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
@@ -675,7 +487,7 @@ class UserDashBoard extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.visibility,
               size: 20,
               color: Colors.white,
@@ -694,26 +506,26 @@ class UserDashBoard extends StatelessWidget {
     );
   }
 
-  Widget _buildCompactMedicationsSection(BuildContext context, DashboardProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+  // Fixed method signature - removed provider parameter since it's accessed via Consumer
+  Widget _buildMedicationsSection(BuildContext context) {
+    return Consumer<DashboardProvider>(
+      builder: (context, provider, child) {
+        return Container(
+          padding: const EdgeInsets.all(AppTheme.spacingM),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 "Today's Medications",
@@ -721,82 +533,96 @@ class UserDashBoard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              IconButton(
-                onPressed: () => _showAddMedicationDialog(context),
-                icon: Icon(Icons.add_circle_outline, color: AppTheme.primaryColor, size: 30),
-                tooltip: 'Add Medication',
-              ),
+              const SizedBox(height: AppTheme.spacingS),
+
+              // No medications message
+              if (provider.medications.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(AppTheme.spacingL),
+                  child: Column(
+                    children: [
+                      Icon(Icons.medication_outlined, size: 48, color: AppTheme.textHint),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No medications available',
+                        style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                          color: AppTheme.textHint,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+              // Medications list
+                Column(
+                  children: provider.medications.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    Map<String, dynamic> med = entry.value;
+                    bool isLast = index == provider.medications.length - 1;
+                    return _buildMedicationItem(context, med, isLast, provider, index);
+                  }).toList(),
+                ),
             ],
           ),
-          const SizedBox(height: AppTheme.spacingS),
-
-          // Compact medication list
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundColor,
-              borderRadius: BorderRadius.circular(AppTheme.borderRadiusM),
-              border: Border.all(color: AppTheme.borderColor),
-            ),
-            child: Column(
-              children: [
-                ...provider.medications.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  Map<String, dynamic> medication = entry.value;
-                  bool isLast = index == provider.medications.length - 1;
-
-                  return _buildCompactMedicationItem(context, medication, index, isLast, provider);
-                }),
-                if (provider.medications.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacingL),
-                    child: Column(
-                      children: [
-                        Icon(Icons.medication_outlined,
-                            size: 48,
-                            color: AppTheme.textHint),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No medications added yet',
-                          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textHint,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Tap + to add your first medication reminder',
-                          style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                            color: AppTheme.textHint,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildCompactMedicationItem(BuildContext context, Map<String, dynamic> medication,
-      int index, bool isLast, DashboardProvider provider)
-  {
+  // Fixed medication toggle logic
+  Widget _buildMedicationItem(
+      BuildContext context,
+      Map<String, dynamic> medication,
+      bool isLast,
+      DashboardProvider provider,
+      int index) {
+
     final bool isTaken = medication[DBHelper.COL_MED_IS_TAKEN] == 1;
     final int timeStamp = medication[DBHelper.COL_MED_TIME];
     final medicationDateTime = DateTime.fromMillisecondsSinceEpoch(timeStamp);
     final medicationTime = TimeOfDay.fromDateTime(medicationDateTime).format(context);
 
     return GestureDetector(
-      onTap: () => provider.toggleMedicationTakenById(index),
-      onLongPress: () => _confirmDeleteMedication(context, index),
+      onTap: () async {
+        try {
+          // Use the correct method name from your provider
+          final medId = medication[DBHelper.COL_MED_ID];
+          final result = await provider.toggleMedicationTakenById(medId);
+
+          if (!result.success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else {
+            // Show success message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.message),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+          // UI will update automatically due to notifyListeners() in provider
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating medication: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      onLongPress: () => _confirmDeleteMedication(context, medication[DBHelper.COL_MED_ID]),
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
           color: isTaken ? AppTheme.successColor.withOpacity(0.05) : null,
-          border: isLast ? null : Border(
-            bottom: BorderSide(color: AppTheme.borderColor.withOpacity(0.5)),
-          ),
+          border: isLast
+              ? null
+              : Border(bottom: BorderSide(color: AppTheme.borderColor.withOpacity(0.5))),
         ),
         child: Row(
           children: [
@@ -812,9 +638,7 @@ class UserDashBoard extends StatelessWidget {
                 ),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: isTaken
-                  ? const Icon(Icons.check, color: Colors.white, size: 16)
-                  : null,
+              child: isTaken ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
             ),
             const SizedBox(width: AppTheme.spacingM),
 
@@ -824,17 +648,18 @@ class UserDashBoard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    medication[DBHelper.COL_MED_NAME],
+                    medication[DBHelper.COL_MED_NAME] ?? 'Unknown Medication',
                     style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       decoration: isTaken ? TextDecoration.lineThrough : null,
                       color: isTaken ? AppTheme.textHint : null,
                     ),
                   ),
-                  if (medication[DBHelper.COL_MED_DOSAGE].toString().isNotEmpty) ...[
+                  if (medication[DBHelper.COL_MED_DOSAGE] != null &&
+                      medication[DBHelper.COL_MED_DOSAGE].toString().isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      medication[DBHelper.COL_MED_DOSAGE],
+                      medication[DBHelper.COL_MED_DOSAGE].toString(),
                       style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
                         color: AppTheme.textHint,
                         decoration: isTaken ? TextDecoration.lineThrough : null,

@@ -431,6 +431,7 @@ class NavigatorBarState extends State<NavigatorBar> {
     });
   }
 
+
   void goToLogs() {
     setState(() {
       currentPage = 3; // User Logs index

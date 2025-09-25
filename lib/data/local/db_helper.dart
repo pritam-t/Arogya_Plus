@@ -374,10 +374,10 @@ class DBHelper {
     var db = await getDB();
     int rowsAffected = await db.insert(ALLERGIES_TABLE,
         {
-      COL_ALLERGY_NAME: allergyName,
-      COL_ALLERGY_SEVERITY: severity,
-      COL_ALLERGY_DATE_ADDED: DateTime.now().millisecondsSinceEpoch,
-    });
+          COL_ALLERGY_NAME: allergyName,
+          COL_ALLERGY_SEVERITY: severity,
+          COL_ALLERGY_DATE_ADDED: DateTime.now().millisecondsSinceEpoch,
+        });
     return rowsAffected > 0;
   }
 
