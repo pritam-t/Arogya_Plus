@@ -41,12 +41,6 @@ class DBHelper {
   static const String COL_EMERGENCY_RELATIONSHIP = "relationship";
   static const String COL_EMERGENCY_IS_PRIMARY = "is_primary"; // 1 for primary, 0 for secondary
 
-  static const String MEDICATION_TABLE = "medications";
-  static const String COL_MED_ID = "id";
-  static const String COL_MED_NAME = "name";
-  static const String COL_MED_DOSAGE = "dosage";
-  static const String COL_MED_TIME = "time"; // stored as INTEGER (Unix timestamp)
-  static const String COL_MED_IS_TAKEN = "isTaken";
 
   static const String APPOINTMENTS_TABLE = "appointments";
   static const String COL_APPOINT_ID = "id";
@@ -104,17 +98,6 @@ class DBHelper {
         $COL_WEIGHT INTEGER,
         $COL_BLOOD TEXT,
         $COL_PROFILE_IMAGE TEXT
-      )
-    ''');
-
-    // Medications table
-    await db.execute('''
-      CREATE TABLE $MEDICATION_TABLE (
-        $COL_MED_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-        $COL_MED_NAME TEXT NOT NULL,
-        $COL_MED_DOSAGE TEXT,
-        $COL_MED_TIME INTEGER NOT NULL,
-        $COL_MED_IS_TAKEN INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -481,74 +464,6 @@ class DBHelper {
     return rowsAffected > 0;
   }
 
-  // --------------------- MEDICATIONS ---------------------
-  Future<bool> addMedication({
-    required String name,
-    required String dosage,
-    required int time,
-    required bool isTaken,
-  }) async
-  {
-    var db = await getDB();
-    int rowsAffected = await db.insert(MEDICATION_TABLE, {
-      COL_MED_NAME: name,
-      COL_MED_DOSAGE: dosage,
-      COL_MED_TIME: time,
-      COL_MED_IS_TAKEN: isTaken ? 1 : 0,
-    });
-    return rowsAffected > 0;
-  }
-
-  Future<List<Map<String, dynamic>>> getAllMedications() async {
-    var db = await getDB();
-    return await db.query(MEDICATION_TABLE);
-  }
-
-  Future<bool> updateMedication({
-    required int id,
-    required String name,
-    required String dosage,
-    required int time,
-    required bool isTaken,
-  }) async
-  {
-    var db = await getDB();
-    int rowsAffected = await db.update(
-      MEDICATION_TABLE,
-      {
-        COL_MED_NAME: name,
-        COL_MED_DOSAGE: dosage,
-        COL_MED_TIME: time,
-        COL_MED_IS_TAKEN: isTaken ? 1 : 0,
-      },
-      where: "$COL_MED_ID = ?",
-      whereArgs: [id],
-    );
-    return rowsAffected > 0;
-  }
-
-  Future<bool> deleteMedication({required int id}) async
-  {
-    var db = await getDB();
-    int rowsAffected = await db.delete(
-      MEDICATION_TABLE,
-      where: "$COL_MED_ID = ?",
-      whereArgs: [id],
-    );
-    return rowsAffected > 0;
-  }
-
-  Future<bool> toggleMedicationStatus(int id, bool isTaken) async
-  {
-    var db = await getDB();
-    int rows = await db.update(
-      MEDICATION_TABLE,
-      {COL_MED_IS_TAKEN: isTaken ? 1 : 0},
-      where: "$COL_MED_ID = ?",
-      whereArgs: [id],
-    );
-    return rows > 0;
-  }
 
   // --------------------- APPOINTMENTS ---------------------
 

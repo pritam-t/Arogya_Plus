@@ -2,6 +2,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../data/local/db_helper.dart';
+import '../../data/local/medication_db_helper.dart';
 
 class DashboardProvider extends ChangeNotifier {
   File? _profileImage;
@@ -14,6 +15,8 @@ class DashboardProvider extends ChangeNotifier {
   String? get lastError => _lastError;
 
   final DBHelper dbref = DBHelper.getInstance;
+  final MedicationDBHelper medDb = MedicationDBHelper.getInstance;
+
   bool _isLoadingData = false; // Prevent concurrent loads
 
   Map<String, dynamic>? userinfo;
@@ -36,25 +39,26 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Load user info and other data from main DB
       final users = await dbref.getUsers();
-      final meds = await dbref.getAllMedications();
       final appoints = await dbref.getAllAppointments();
       final issues = await dbref.getAllHealthIssues();
       final allergiesDb = await dbref.getAllAllergies();
 
-      // Create mutable copies to prevent read-only errors
       userinfo = users.isNotEmpty ? Map<String, dynamic>.from(users.first) : null;
-      medications = (meds ?? []).map((m) => Map<String, dynamic>.from(m)).toList();
       appointments = (appoints ?? []).map((a) => Map<String, dynamic>.from(a)).toList();
       healthIssues = (issues ?? []).map((h) => Map<String, dynamic>.from(h)).toList();
       allergies = (allergiesDb ?? []).map((al) => Map<String, dynamic>.from(al)).toList();
+
+      final meds = await MedicationDBHelper.getInstance.getAllMedications();
+      medications = meds.map((m) => Map<String, dynamic>.from(m)).toList();
 
       await _loadProfileImage();
     } catch (e, st) {
       _lastError = "Failed to load data: ${e.toString()}";
       debugPrint("Error loading data: $e\n$st");
 
-      // Initialize empty lists on error to prevent null issues
+      // Initialize empty lists on error
       medications = [];
       appointments = [];
       healthIssues = [];
@@ -123,10 +127,12 @@ class DashboardProvider extends ChangeNotifier {
           .where((s) => s.isNotEmpty)
           .toList();
 
-  int get medsTakenCount {
+// Count meds marked as taken
+  Future<int> get medsTakenCount async {
     try {
-      return medications.where((m) {
-        final isTaken = m[DBHelper.COL_MED_IS_TAKEN];
+      final meds = await medDb.getAllMedications();
+      return meds.where((m) {
+        final isTaken = m[MedicationDBHelper.COL_IS_TAKEN];
         return isTaken == 1 || isTaken == true;
       }).length;
     } catch (e) {
@@ -135,12 +141,26 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  int get totalMedsCount => medications.length;
-
-  double get medsCompletionRate {
-    if (totalMedsCount == 0) return 0.0;
-    return medsTakenCount / totalMedsCount;
+// Total meds in DB
+  Future<int> get totalMedsCount async {
+    try {
+      final meds = await medDb.getAllMedications();
+      return meds.length;
+    } catch (e) {
+      debugPrint("Error calculating total meds: $e");
+      return 0;
+    }
   }
+
+// Completion rate (async version)
+  Future<double> get medsCompletionRate async {
+    final total = await totalMedsCount;
+    if (total == 0) return 0.0;
+
+    final taken = await medsTakenCount;
+    return taken / total;
+  }
+
 
   // Get today's appointments
   List<Map<String, dynamic>> get todaysAppointments
@@ -189,226 +209,6 @@ class DashboardProvider extends ChangeNotifier {
     }
   }
 
-  // ---------------- Medication Operations ----------------
-  Future<ProviderResult> addMedication({
-    required String name,
-    required String dosage,
-    required int time,
-  }) async
-  {
-    if (name.trim().isEmpty) {
-      return ProviderResult(false, "Medication name cannot be empty");
-    }
-    if (dosage.trim().isEmpty) {
-      return ProviderResult(false, "Dosage cannot be empty");
-    }
-
-    try {
-      final added = await dbref.addMedication(
-        name: name.trim(),
-        dosage: dosage.trim(),
-        time: time,
-        isTaken: false,
-      );
-
-      if (added) {
-        await loadAllData();
-        return ProviderResult(true, "Medication added successfully");
-      }
-      return ProviderResult(false, "Failed to add medication");
-    } catch (e) {
-      debugPrint("Error adding medication: $e");
-      return ProviderResult(false, "Error adding medication: ${e.toString()}");
-    }
-  }
-
-  Future<ProviderResult> toggleMedicationTakenById(int medId) async {
-    try {
-      debugPrint("Toggling medication with ID: $medId");
-
-      // Find medication index
-      final medIndex = medications.indexWhere((m) => m[DBHelper.COL_MED_ID] == medId);
-      if (medIndex == -1) {
-        debugPrint("Medication not found with ID: $medId");
-        return ProviderResult(false, "Medication not found");
-      }
-
-      debugPrint("Found medication at index: $medIndex");
-
-      // Get current medication - create mutable copy
-      final originalMed = medications[medIndex];
-      final med = Map<String, dynamic>.from(originalMed);
-
-      debugPrint("Original medication data: $originalMed");
-      debugPrint("Mutable copy created: $med");
-
-      final currentTaken = med[DBHelper.COL_MED_IS_TAKEN];
-      final newTakenStatus = !(currentTaken == 1 || currentTaken == true);
-
-      debugPrint("Current taken status: $currentTaken, New status: $newTakenStatus");
-
-      // Update in DB first
-      final updated = await dbref.toggleMedicationStatus(medId, newTakenStatus);
-
-      if (updated) {
-        debugPrint("Database update successful");
-
-        // Update local list with mutable copy
-        med[DBHelper.COL_MED_IS_TAKEN] = newTakenStatus ? 1 : 0;
-        medications[medIndex] = med;
-
-        debugPrint("Local list updated, calling notifyListeners()");
-        notifyListeners();
-
-        return ProviderResult(
-            true,
-            newTakenStatus ? "Marked as taken" : "Marked as not taken"
-        );
-      } else {
-        debugPrint("Database update failed");
-        return ProviderResult(false, "Failed to update medication in database");
-      }
-    } catch (e, stackTrace) {
-      debugPrint("Error toggling medication: $e");
-      debugPrint("Stack trace: $stackTrace");
-      return ProviderResult(false, "Error updating medication: ${e.toString()}");
-    }
-  }
-
-  Future<ProviderResult> toggleMedicationTakenByIdAlternative(int medId) async {
-    try {
-      debugPrint("Using alternative toggle method for medication ID: $medId");
-
-      // Find medication index
-      final medIndex = medications.indexWhere((m) => m[DBHelper.COL_MED_ID] == medId);
-      if (medIndex == -1) {
-        return ProviderResult(false, "Medication not found");
-      }
-
-      // Get current medication data
-      final med = Map<String, dynamic>.from(medications[medIndex]);
-      final currentTaken = med[DBHelper.COL_MED_IS_TAKEN];
-      final newTakenStatus = !(currentTaken == 1 || currentTaken == true);
-
-      // Use updateMedication if toggleMedicationStatus doesn't exist
-      final updated = await dbref.updateMedication(
-        id: medId,
-        name: med[DBHelper.COL_MED_NAME],
-        dosage: med[DBHelper.COL_MED_DOSAGE],
-        time: med[DBHelper.COL_MED_TIME],
-        isTaken: newTakenStatus,
-      );
-
-      if (updated) {
-        // Update local list
-        med[DBHelper.COL_MED_IS_TAKEN] = newTakenStatus ? 1 : 0;
-        medications[medIndex] = med;
-
-        notifyListeners();
-
-        return ProviderResult(
-            true,
-            newTakenStatus ? "Marked as taken" : "Marked as not taken"
-        );
-      }
-
-      return ProviderResult(false, "Failed to update medication");
-    } catch (e, stackTrace) {
-      debugPrint("Error in alternative toggle method: $e");
-      debugPrint("Stack trace: $stackTrace");
-      return ProviderResult(false, "Error updating medication: ${e.toString()}");
-    }
-  }
-
-  Future<ProviderResult> updateMedication({
-    required int id,
-    required String name,
-    required String dosage,
-    required int time,
-    bool? isTaken,
-  }) async
-  {
-    if (name.trim().isEmpty) {
-      return ProviderResult(false, "Medication name cannot be empty");
-    }
-    if (dosage.trim().isEmpty) {
-      return ProviderResult(false, "Dosage cannot be empty");
-    }
-
-    try {
-      final medIndex = medications.indexWhere((m) => m[DBHelper.COL_MED_ID] == id);
-      if (medIndex == -1) {
-        return ProviderResult(false, "Medication not found");
-      }
-
-      final currentMed = medications[medIndex];
-      final currentTaken = isTaken ?? (currentMed[DBHelper.COL_MED_IS_TAKEN] == 1 || currentMed[DBHelper.COL_MED_IS_TAKEN] == true);
-
-      final updated = await dbref.updateMedication(
-        id: id,
-        name: name.trim(),
-        dosage: dosage.trim(),
-        time: time,
-        isTaken: currentTaken,
-      );
-
-      if (updated) {
-        await loadAllData();
-        return ProviderResult(true, "Medication updated successfully");
-      }
-      return ProviderResult(false, "Failed to update medication");
-    } catch (e) {
-      debugPrint("Error updating medication: $e");
-      return ProviderResult(false, "Error updating medication: ${e.toString()}");
-    }
-  }
-
-  Future<ProviderResult> deleteMedicationById(int medId) async {
-    try {
-      final medIndex = medications.indexWhere((m) => m[DBHelper.COL_MED_ID] == medId);
-      if (medIndex == -1) {
-        return ProviderResult(false, "Medication not found");
-      }
-
-      final deleted = await dbref.deleteMedication(id: medId);
-      if (deleted) {
-        await loadAllData();
-        return ProviderResult(true, "Medication deleted successfully");
-      }
-      return ProviderResult(false, "Failed to delete medication");
-    } catch (e) {
-      debugPrint("Error deleting medication: $e");
-      return ProviderResult(false, "Error deleting medication: ${e.toString()}");
-    }
-  }
-
-  // Reset all medications taken status (for new day)
-  Future<ProviderResult> resetAllMedicationsTaken() async {
-    try {
-      int updatedCount = 0;
-      for (final med in medications) {
-        if (med[DBHelper.COL_MED_IS_TAKEN] == 1 || med[DBHelper.COL_MED_IS_TAKEN] == true) {
-          final updated = await dbref.updateMedication(
-            id: med[DBHelper.COL_MED_ID],
-            name: med[DBHelper.COL_MED_NAME],
-            dosage: med[DBHelper.COL_MED_DOSAGE],
-            time: med[DBHelper.COL_MED_TIME],
-            isTaken: false,
-          );
-          if (updated) updatedCount++;
-        }
-      }
-
-      if (updatedCount > 0) {
-        await loadAllData();
-        return ProviderResult(true, "Reset $updatedCount medication(s)");
-      }
-      return ProviderResult(true, "No medications to reset");
-    } catch (e) {
-      debugPrint("Error resetting medications: $e");
-      return ProviderResult(false, "Error resetting medications: ${e.toString()}");
-    }
-  }
 
   // ---------------- Appointment Operations ----------------
   Future<ProviderResult> addAppointment({

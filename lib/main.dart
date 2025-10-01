@@ -1,4 +1,4 @@
- import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mediscan_plus/features/auth/forgotpass.dart';
 import 'package:mediscan_plus/features/auth/login.dart';
@@ -6,16 +6,17 @@ import 'package:mediscan_plus/features/user_screens/dashboard.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'Provider/Dashboard/DashboardProvider.dart';
+import 'Provider/Medication/MedicationProvider.dart';
 import 'Splash_Screen.dart';
+import 'data/Private.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
 import 'features/back_screens/navigation.dart';
 import 'features/back_screens/nearby_doc.dart';
 import 'features/user_screens/user_logs.dart';
 
-
-const supabaseUrl = 'https://hrlgvxmjhelbourfeojd.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhybGd2eG1qaGVsYm91cmZlb2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwMjkzMzQsImV4cCI6MjA3MzYwNTMzNH0.v5JfCI9CqtrY6F2kxUuL0yAOplKPn22aWMUpHWoTZaQ';
+final supabaseUrl = Keys.supabaseUrl;
+final supabaseKey = Keys.supabaseKey;
 
 Future<void> main() async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        ChangeNotifierProvider(create: (_) => MedicationProvider()..loadMedications()),
         // Add more providers here if needed later
       ],
       child: MaterialApp(

@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../Provider/Dashboard/DashboardProvider.dart';
+import '../../Provider/Medication/MedicationProvider.dart';
 import '../../data/local/db_helper.dart';
+import '../../data/local/medication_db_helper.dart';
 import '../../main.dart';
 import '../back_screens/navigation.dart';
 import 'package:intl/intl.dart';
@@ -25,15 +27,32 @@ class UserDashBoard extends StatelessWidget {
           TextButton(
             onPressed: () async {
               try {
-                final provider = Provider.of<DashboardProvider>(context, listen: false);
-                await provider.deleteMedicationById(medId);
+                // Use the singleton getter (NOT MedicationDBHelper())
+                final dbHelper = MedicationDBHelper.getInstance;
+
+                final int rowsDeleted = await dbHelper.deleteMedication(medId);
+
                 Navigator.of(dialogContext).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Medication deleted successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+
+                if (rowsDeleted > 0) {
+                  // Refresh provider so Dashboard updates immediately
+                  final medProvider = Provider.of<MedicationProvider>(context, listen: false);
+                  await medProvider.loadMedications();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Medication deleted successfully'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Medication not found / nothing deleted'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               } catch (e) {
                 Navigator.of(dialogContext).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -354,7 +373,7 @@ class UserDashBoard extends StatelessWidget {
       builder: (context, provider, child) {
         // Medications taken count
         final medsTaken = provider.medications
-            .where((m) => m[DBHelper.COL_MED_IS_TAKEN] == 1)
+            .where((m) => m[MedicationDBHelper.COL_IS_TAKEN] == 1)
             .length;
 
         final conditionsCount = provider.healthConditions.length;
@@ -506,10 +525,25 @@ class UserDashBoard extends StatelessWidget {
     );
   }
 
-  // Fixed method signature - removed provider parameter since it's accessed via Consumer
   Widget _buildMedicationsSection(BuildContext context) {
-    return Consumer<DashboardProvider>(
-      builder: (context, provider, child) {
+    return Consumer<MedicationProvider>(
+      builder: (context, medProvider, child) {
+        final now = DateTime.now();
+        // Make a mutable copy to sort
+        final meds = List<Map<String, dynamic>>.from(medProvider.medications);
+
+        // Sort by nearest upcoming time
+        meds.sort((a, b) {
+          DateTime? nextA = _getNextMedicationTime(a, now);
+          DateTime? nextB = _getNextMedicationTime(b, now);
+
+          if (nextA == null && nextB == null) return 0;
+          if (nextA == null) return 1;
+          if (nextB == null) return -1;
+
+          return nextA.compareTo(nextB);
+        });
+
         return Container(
           padding: const EdgeInsets.all(AppTheme.spacingM),
           decoration: BoxDecoration(
@@ -535,8 +569,7 @@ class UserDashBoard extends StatelessWidget {
               ),
               const SizedBox(height: AppTheme.spacingS),
 
-              // No medications message
-              if (provider.medications.isEmpty)
+              if (meds.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(AppTheme.spacingL),
                   child: Column(
@@ -553,13 +586,12 @@ class UserDashBoard extends StatelessWidget {
                   ),
                 )
               else
-              // Medications list
                 Column(
-                  children: provider.medications.asMap().entries.map((entry) {
+                  children: meds.asMap().entries.map((entry) {
                     int index = entry.key;
                     Map<String, dynamic> med = entry.value;
-                    bool isLast = index == provider.medications.length - 1;
-                    return _buildMedicationItem(context, med, isLast, provider, index);
+                    bool isLast = index == meds.length - 1;
+                    return _buildMedicationItem(context, med, isLast, medProvider, index);
                   }).toList(),
                 ),
             ],
@@ -569,100 +601,76 @@ class UserDashBoard extends StatelessWidget {
     );
   }
 
-  // Fixed medication toggle logic
   Widget _buildMedicationItem(
       BuildContext context,
       Map<String, dynamic> medication,
       bool isLast,
-      DashboardProvider provider,
+      MedicationProvider medProvider,
       int index) {
 
-    final bool isTaken = medication[DBHelper.COL_MED_IS_TAKEN] == 1;
-    final int timeStamp = medication[DBHelper.COL_MED_TIME];
-    final medicationDateTime = DateTime.fromMillisecondsSinceEpoch(timeStamp);
-    final medicationTime = TimeOfDay.fromDateTime(medicationDateTime).format(context);
+    final String medName = medication[MedicationDBHelper.COL_NAME] ?? 'Unknown Medication';
+    final String dosage = medication[MedicationDBHelper.COL_DOSAGE] ?? '';
+
+    final bool hasMorning = (medication[MedicationDBHelper.COL_IS_MORNING] == 1);
+    final bool hasNight = (medication[MedicationDBHelper.COL_IS_NIGHT] == 1);
+
+    final String? morningTime = medication[MedicationDBHelper.COL_MORNING_TIME];
+    final String? nightTime = medication[MedicationDBHelper.COL_NIGHT_TIME];
+
+    final int medId = medication[MedicationDBHelper.COL_ID];
+    bool isTaken = medication[MedicationDBHelper.COL_IS_TAKEN] == 1;
 
     return GestureDetector(
-      onTap: () async {
-        try {
-          // Use the correct method name from your provider
-          final medId = medication[DBHelper.COL_MED_ID];
-          final result = await provider.toggleMedicationTakenById(medId);
-
-          if (!result.success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          } else {
-            // Show success message
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result.message),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-          // UI will update automatically due to notifyListeners() in provider
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error updating medication: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      },
-      onLongPress: () => _confirmDeleteMedication(context, medication[DBHelper.COL_MED_ID]),
+      onLongPress: () => _confirmDeleteMedication(context, medId),
       child: Container(
         padding: const EdgeInsets.all(AppTheme.spacingM),
         decoration: BoxDecoration(
-          color: isTaken ? AppTheme.successColor.withOpacity(0.05) : null,
           border: isLast
               ? null
               : Border(bottom: BorderSide(color: AppTheme.borderColor.withOpacity(0.5))),
         ),
         child: Row(
           children: [
-            // Checkbox
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: isTaken ? AppTheme.successColor : Colors.transparent,
-                border: Border.all(
-                  color: isTaken ? AppTheme.successColor : AppTheme.textHint,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: isTaken ? const Icon(Icons.check, color: Colors.white, size: 16) : null,
+            Checkbox(
+              value: isTaken,
+              onChanged: (value) async {
+                await medProvider.toggleMedicationStatus(medId, value ?? false);
+                // Optionally, show a snackbar
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      value == true
+                          ? "Marked '$medName' as taken"
+                          : "Marked '$medName' as not taken",
+                    ),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              },
             ),
+            const SizedBox(width: 8),
+            Icon(Icons.medication, color: AppTheme.primaryColor),
             const SizedBox(width: AppTheme.spacingM),
 
-            // Medication info
+            // Medication Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    medication[DBHelper.COL_MED_NAME] ?? 'Unknown Medication',
+                    medName,
                     style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
-                      decoration: isTaken ? TextDecoration.lineThrough : null,
-                      color: isTaken ? AppTheme.textHint : null,
+                      decoration: isTaken ? TextDecoration.lineThrough : TextDecoration.none,
+                      color: isTaken ? AppTheme.textHint : AppTheme.textPrimary,
                     ),
                   ),
-                  if (medication[DBHelper.COL_MED_DOSAGE] != null &&
-                      medication[DBHelper.COL_MED_DOSAGE].toString().isNotEmpty) ...[
+                  if (dosage.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      medication[DBHelper.COL_MED_DOSAGE].toString(),
+                      dosage,
                       style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textHint,
-                        decoration: isTaken ? TextDecoration.lineThrough : null,
+                        color: isTaken ? AppTheme.textHint : AppTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -670,24 +678,57 @@ class UserDashBoard extends StatelessWidget {
               ),
             ),
 
-            // Time
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isTaken
-                    ? AppTheme.successColor.withOpacity(0.1)
-                    : AppTheme.primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                medicationTime,
-                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                  color: isTaken ? AppTheme.successColor : AppTheme.primaryColor,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+            // Times
+            if (hasMorning && morningTime != null)
+              _buildTimeChip(morningTime, AppTheme.primaryColor),
+            if (hasNight && nightTime != null)
+              _buildTimeChip(nightTime, Colors.deepPurple),
           ],
+        ),
+      ),
+    );
+  }
+
+// Helper to get next upcoming time for sorting
+  DateTime? _getNextMedicationTime(Map<String, dynamic> med, DateTime now) {
+    List<DateTime> times = [];
+
+    if (med[MedicationDBHelper.COL_IS_MORNING] == 1 &&
+        med[MedicationDBHelper.COL_MORNING_TIME] != null) {
+      final parts = med[MedicationDBHelper.COL_MORNING_TIME].split(':');
+      times.add(DateTime(now.year, now.month, now.day,
+          int.parse(parts[0]), int.parse(parts[1])));
+    }
+
+    if (med[MedicationDBHelper.COL_IS_NIGHT] == 1 &&
+        med[MedicationDBHelper.COL_NIGHT_TIME] != null) {
+      final parts = med[MedicationDBHelper.COL_NIGHT_TIME].split(':');
+      times.add(DateTime(now.year, now.month, now.day,
+          int.parse(parts[0]), int.parse(parts[1])));
+    }
+
+    if (times.isEmpty) return null;
+
+    // Return the earliest upcoming time that's after now
+    times = times.where((t) => t.isAfter(now)).toList();
+    if (times.isEmpty) return null;
+    times.sort();
+    return times.first;
+  }
+
+  Widget _buildTimeChip(String time, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        time,
+        style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w500,
         ),
       ),
     );
