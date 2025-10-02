@@ -9,6 +9,7 @@ import 'Provider/Dashboard/DashboardProvider.dart';
 import 'Provider/Medication/MedicationProvider.dart';
 import 'Splash_Screen.dart';
 import 'data/Private.dart';
+import 'data/local/notification_helper.dart';
 import 'features/auth/profile.dart';
 import 'features/auth/signup.dart';
 import 'features/back_screens/navigation.dart';
@@ -20,8 +21,8 @@ final supabaseKey = Keys.supabaseKey;
 
 Future<void> main() async{
   WidgetsFlutterBinding.ensureInitialized();
-  // await NotificationService().initialize();
-  // await NotificationService().requestPermissions();
+  await NotificationService().initialize();
+  await NotificationService().requestPermissions();
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
   runApp(const MyApp());
 }
