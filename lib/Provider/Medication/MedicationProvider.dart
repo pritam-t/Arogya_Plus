@@ -5,15 +5,13 @@ class MedicationProvider extends ChangeNotifier {
   final MedicationDBHelper _dbHelper = MedicationDBHelper.getInstance;
 
   List<Map<String, dynamic>> _medications = [];
-  List<Map<String, dynamic>> get medications => _medications;
+  List<Map<String, dynamic>> get medications => List.unmodifiable(_medications);
 
-  // Fetch all medications from DB
   Future<void> loadMedications() async {
     _medications = await _dbHelper.getAllMedications();
     notifyListeners();
   }
 
-  // Add new medication
   Future<void> addMedication(Map<String, dynamic> medData) async {
     await _dbHelper.addMedication(
       name: medData[MedicationDBHelper.COL_NAME],
@@ -26,12 +24,10 @@ class MedicationProvider extends ChangeNotifier {
       days: medData[MedicationDBHelper.COL_DAYS],
       reminderMinutes: medData[MedicationDBHelper.COL_REMINDER_MINUTES],
       isTaken: medData[MedicationDBHelper.COL_IS_TAKEN] == 1,
-
     );
-    await loadMedications(); // refresh list
+    await loadMedications();
   }
 
-  // Update medication
   Future<void> updateMedication(int id, Map<String, dynamic> medData) async {
     await _dbHelper.updateMedication(
       id: id,
@@ -45,28 +41,33 @@ class MedicationProvider extends ChangeNotifier {
       days: medData[MedicationDBHelper.COL_DAYS],
       reminderMinutes: medData[MedicationDBHelper.COL_REMINDER_MINUTES],
       isTaken: medData[MedicationDBHelper.COL_IS_TAKEN] == 1,
-
     );
     await loadMedications();
   }
 
-  // Delete medication
   Future<void> deleteMedication(int id) async {
     await _dbHelper.deleteMedication(id);
     await loadMedications();
   }
 
   Future<void> toggleMedicationStatus(int id, bool isTaken) async {
-    await _dbHelper.toggleMedicationStatus(id, isTaken);
-    // Update local list
     int index = _medications.indexWhere((m) => m[MedicationDBHelper.COL_ID] == id);
+
     if (index != -1) {
+      _medications = List<Map<String, dynamic>>.from(_medications);
+      _medications[index] = Map<String, dynamic>.from(_medications[index]);
       _medications[index][MedicationDBHelper.COL_IS_TAKEN] = isTaken ? 1 : 0;
+
       notifyListeners();
+    }
+
+    try {
+      await _dbHelper.toggleMedicationStatus(id, isTaken);
+    } catch (e) {
+      await loadMedications();
     }
   }
 
-  // Reactive counts
   int get medsTakenCount {
     return _medications.where((m) => m[MedicationDBHelper.COL_IS_TAKEN] == 1).length;
   }

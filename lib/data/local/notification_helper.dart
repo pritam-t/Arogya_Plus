@@ -1,166 +1,169 @@
+// import 'dart:io';
+//
 // import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 // import 'package:timezone/timezone.dart' as tz;
-// import 'package:timezone/data/latest.dart' as tz;
+// import 'package:timezone/data/latest_all.dart' as tz;
+// import 'package:permission_handler/permission_handler.dart';
 //
-// class NotificationHelper {
-//   NotificationHelper._();
+// class NotificationService {
+//   static final NotificationService _instance = NotificationService._internal();
+//   factory NotificationService() => _instance;
+//   NotificationService._internal();
 //
-//   static final NotificationHelper getInstance = NotificationHelper._();
+//   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+//   bool _isInitialized = false;
 //
-//   final FlutterLocalNotificationsPlugin _notificationsPlugin =
-//   FlutterLocalNotificationsPlugin();
+//   Future<void> initialize() async {
+//     if (_isInitialized) return;
 //
-//   // Initialize notification system
-//   Future<void> init() async {
 //     // Initialize timezone
 //     tz.initializeTimeZones();
+//     tz.setLocalLocation(tz.getLocation('Asia/Kolkata')); // Set to your timezone
 //
 //     // Android initialization settings
 //     const AndroidInitializationSettings androidSettings =
 //     AndroidInitializationSettings('@mipmap/ic_launcher');
 //
 //     // iOS initialization settings
-//     const DarwinInitializationSettings iosSettings =
-//     DarwinInitializationSettings(
+//     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
 //       requestAlertPermission: true,
 //       requestBadgePermission: true,
 //       requestSoundPermission: true,
 //     );
 //
-//     // Combined initialization settings
 //     const InitializationSettings initSettings = InitializationSettings(
 //       android: androidSettings,
 //       iOS: iosSettings,
 //     );
 //
-//     // Initialize the plugin
-//     await _notificationsPlugin.initialize(
+//     await _notifications.initialize(
 //       initSettings,
-//       onDidReceiveNotificationResponse: _onNotificationTap,
+//       onDidReceiveNotificationResponse: (NotificationResponse response) {
+//         // Handle notification tap
+//         print('Notification tapped: ${response.payload}');
+//       },
 //     );
 //
-//     // Request permissions for iOS
-//     await _requestIOSPermissions();
-//
-//     // Request permissions for Android 13+
-//     await _requestAndroidPermissions();
+//     _isInitialized = true;
 //   }
 //
-//   // Request iOS permissions
-//   Future<void> _requestIOSPermissions() async {
-//     await _notificationsPlugin
-//         .resolvePlatformSpecificImplementation<
-//         IOSFlutterLocalNotificationsPlugin>()
-//         ?.requestPermissions(
-//       alert: true,
-//       badge: true,
-//       sound: true,
-//     );
+//   // Request notification permissions
+//   Future<bool> requestPermissions() async {
+//     if (Platform.isAndroid) {
+//       if (await Permission.notification.isDenied) {
+//         final status = await Permission.notification.request();
+//         return status.isGranted;
+//       }
+//       return true;
+//     } else if (Platform.isIOS) {
+//       final bool? result = await _notifications
+//           .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+//           ?.requestPermissions(alert: true, badge: true, sound: true);
+//       return result ?? false;
+//     }
+//     return true;
 //   }
 //
-//   // Request Android permissions (for Android 13+)
-//   Future<void> _requestAndroidPermissions() async {
-//     final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-//     _notificationsPlugin.resolvePlatformSpecificImplementation<
-//         AndroidFlutterLocalNotificationsPlugin>();
-//
-//     await androidImplementation?.requestNotificationsPermission();
-//   }
-//
-//   // Handle notification tap
-//   void _onNotificationTap(NotificationResponse response) {
-//     // Handle notification tap - navigate to specific screen if needed
-//     // You can use response.payload to pass data
-//     print('Notification tapped: ${response.payload}');
-//   }
-//
-//   // Schedule a medication notification
-//   Future<void> scheduleMedicationNotification({
-//     required int id,
-//     required String title,
-//     required String body,
-//     required DateTime scheduleTime,
+//   // Schedule a medication reminder
+//   Future<void> scheduleMedicationReminder({
+//     required int medicationId,
+//     required String medicationName,
+//     required String dosage,
+//     required DateTime scheduledTime,
+//     required int reminderMinutesBefore,
+//     required bool isMorning, // true for morning, false for night
 //   }) async {
-//     // Convert DateTime to TZDateTime
-//     final tz.TZDateTime scheduledDate = tz.TZDateTime.from(
-//       scheduleTime,
-//       tz.local,
-//     );
+//     await initialize();
 //
-//     // Android notification details
-//     const AndroidNotificationDetails androidDetails =
-//     AndroidNotificationDetails(
-//       'medication_channel',
-//       'Medication Reminders',
-//       channelDescription: 'Notifications for medication reminders',
-//       importance: Importance.high,
-//       priority: Priority.high,
-//       playSound: true,
-//       enableVibration: true,
-//       icon: '@mipmap/ic_launcher',
-//     );
+//     // Calculate notification time (subtract reminder minutes)
+//     final notificationTime = scheduledTime.subtract(Duration(minutes: reminderMinutesBefore));
 //
-//     // iOS notification details
-//     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-//       presentAlert: true,
-//       presentBadge: true,
-//       presentSound: true,
-//     );
-//
-//     // Combined notification details
-//     const NotificationDetails notificationDetails = NotificationDetails(
-//       android: androidDetails,
-//       iOS: iosDetails,
-//     );
-//
-//     // Schedule the notification
-//     await _notificationsPlugin.zonedSchedule(
-//       id,
-//       title,
-//       body,
-//       scheduledDate,
-//       notificationDetails,
-//       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-//       payload: 'medication_$id',
-//     );
-//   }
-//
-//   // Schedule repeating daily notification at specific time
-//   Future<void> scheduleDailyNotification({
-//     required int id,
-//     required String title,
-//     required String body,
-//     required int hour,
-//     required int minute,
-//   }) async {
-//     // Create time for today
-//     final now = DateTime.now();
-//     var scheduledDate = DateTime(
-//       now.year,
-//       now.month,
-//       now.day,
-//       hour,
-//       minute,
-//     );
-//
-//     // If the time has passed today, schedule for tomorrow
-//     if (scheduledDate.isBefore(now)) {
-//       scheduledDate = scheduledDate.add(const Duration(days: 1));
+//     // Don't schedule if the time has already passed today
+//     if (notificationTime.isBefore(DateTime.now())) {
+//       print('Notification time has passed for today, skipping: $medicationName');
+//       return;
 //     }
 //
-//     final tz.TZDateTime scheduledTZDate = tz.TZDateTime.from(
-//       scheduledDate,
-//       tz.local,
-//     );
+//     final tz.TZDateTime scheduledDate = tz.TZDateTime.from(notificationTime, tz.local);
 //
-//     const AndroidNotificationDetails androidDetails =
-//     AndroidNotificationDetails(
-//       'medication_channel',
+//     // Create unique notification ID (medication ID + 0 for morning, 1 for night)
+//     final int notificationId = medicationId * 10 + (isMorning ? 0 : 1);
+//
+//     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+//       'medication_reminders',
 //       'Medication Reminders',
 //       channelDescription: 'Notifications for medication reminders',
 //       importance: Importance.high,
 //       priority: Priority.high,
-//       playSound: true,
+//       icon: '@mipmap/ic_launcher',
+//       sound: RawResourceAndroidNotificationSound('notification_sound'),
+//       enableVibration: true,
+//     );
+//
+//     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+//       presentAlert: true,
+//       presentBadge: true,
+//       presentSound: true,
+//       sound: 'notification_sound.aiff',
+//     );
+//
+//     const NotificationDetails notificationDetails = NotificationDetails(
+//       android: androidDetails,
+//       iOS: iosDetails,
+//     );
+//
+//     final String timeLabel = isMorning ? 'Morning' : 'Night';
+//     final String body = reminderMinutesBefore > 0
+//         ? 'Take $dosage in $reminderMinutesBefore minutes ($timeLabel)'
+//         : 'Time to take $dosage ($timeLabel)';
+//
+//     await _notifications.zonedSchedule(
+//       notificationId,
+//       '💊 Medication Reminder',
+//       '$medicationName - $body',
+//       scheduledDate,
+//       notificationDetails,
+//       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+//       uiLocalNotificationDateInterpretation:
+//       UILocalNotificationDateInterpretation.absoluteTime,
+//       payload: 'medication_$medicationId',
+//     );
+//
+//     print('Scheduled notification for $medicationName at $scheduledDate');
+//   }
+//
+//   // Schedule daily repeating reminder
+//   Future<void> scheduleDailyMedicationReminder({
+//     required int medicationId,
+//     required String medicationName,
+//     required String dosage,
+//     required int hour,
+//     required int minute,
+//     required int reminderMinutesBefore,
+//     required bool isMorning,
+//     List<int>? customDays, // null for everyday, list of weekdays (1-7) for custom
+//   }) async {
+//     await initialize();
+//
+//     // Calculate notification time
+//     final now = DateTime.now();
+//     DateTime scheduledTime = DateTime(now.year, now.month, now.day, hour, minute);
+//
+//     // If time has passed today, schedule for tomorrow
+//     if (scheduledTime.isBefore(now)) {
+//       scheduledTime = scheduledTime.add(const Duration(days: 1));
+//     }
+//
+//     final notificationTime = scheduledTime.subtract(Duration(minutes: reminderMinutesBefore));
+//     final int notificationId = medicationId * 10 + (isMorning ? 0 : 1);
+//
+//     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+//       'medication_reminders',
+//       'Medication Reminders',
+//       channelDescription: 'Notifications for medication reminders',
+//       importance: Importance.high,
+//       priority: Priority.high,
+//       icon: '@mipmap/ic_launcher',
 //       enableVibration: true,
 //     );
 //
@@ -175,144 +178,74 @@
 //       iOS: iosDetails,
 //     );
 //
-//     // Schedule daily notification
-//     await _notificationsPlugin.zonedSchedule(
-//       id,
-//       title,
-//       body,
-//       scheduledTZDate,
-//       notificationDetails,
-//       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-//       matchDateTimeComponents: DateTimeComponents.time,
-//       payload: 'medication_$id',
-//     );
-//   }
+//     final String timeLabel = isMorning ? 'Morning' : 'Night';
+//     final String body = reminderMinutesBefore > 0
+//         ? 'Take $dosage in $reminderMinutesBefore minutes ($timeLabel)'
+//         : 'Time to take $dosage ($timeLabel)';
 //
-//   // Schedule notification on specific days of week
-//   Future<void> scheduleWeeklyNotification({
-//     required int id,
-//     required String title,
-//     required String body,
-//     required int hour,
-//     required int minute,
-//     required List<int> weekdays, // 1 = Monday, 7 = Sunday
-//   }) async {
-//     // Cancel existing notification first
-//     await cancelNotification(id);
-//
-//     // Schedule for each weekday
-//     for (int i = 0; i < weekdays.length; i++) {
-//       final uniqueId = id * 10 + i; // Create unique ID for each day
-//       final now = DateTime.now();
-//
-//       // Find next occurrence of this weekday
-//       var scheduledDate = _findNextWeekday(now, weekdays[i], hour, minute);
-//
-//       final tz.TZDateTime scheduledTZDate = tz.TZDateTime.from(
-//         scheduledDate,
-//         tz.local,
-//       );
-//
-//       const AndroidNotificationDetails androidDetails =
-//       AndroidNotificationDetails(
-//         'medication_channel',
-//         'Medication Reminders',
-//         channelDescription: 'Notifications for medication reminders',
-//         importance: Importance.high,
-//         priority: Priority.high,
-//         playSound: true,
-//         enableVibration: true,
-//       );
-//
-//       const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-//         presentAlert: true,
-//         presentBadge: true,
-//         presentSound: true,
-//       );
-//
-//       const NotificationDetails notificationDetails = NotificationDetails(
-//         android: androidDetails,
-//         iOS: iosDetails,
-//       );
-//
-//       await _notificationsPlugin.zonedSchedule(
-//         uniqueId,
-//         title,
-//         body,
-//         scheduledTZDate,
+//     if (customDays == null || customDays.isEmpty) {
+//       // Everyday - use daily schedule
+//       await _notifications.zonedSchedule(
+//         notificationId,
+//         '💊 Medication Reminder',
+//         '$medicationName - $body',
+//         tz.TZDateTime.from(notificationTime, tz.local),
 //         notificationDetails,
 //         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-//         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-//         payload: 'medication_$id',
+//         uiLocalNotificationDateInterpretation:
+//         UILocalNotificationDateInterpretation.absoluteTime,
+//         matchDateTimeComponents: DateTimeComponents.time,
+//         payload: 'medication_$medicationId',
 //       );
+//     } else {
+//       // Custom days - schedule for each specified day
+//       for (int i = 0; i < 7; i++) {
+//         final nextDate = scheduledTime.add(Duration(days: i));
+//         if (customDays.contains(nextDate.weekday)) {
+//           final notificationDateTime = nextDate.subtract(Duration(minutes: reminderMinutesBefore));
+//           await _notifications.zonedSchedule(
+//             notificationId + i * 100, // Unique ID for each day
+//             '💊 Medication Reminder',
+//             '$medicationName - $body',
+//             tz.TZDateTime.from(notificationDateTime, tz.local),
+//             notificationDetails,
+//             androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+//             uiLocalNotificationDateInterpretation:
+//             UILocalNotificationDateInterpretation.absoluteTime,
+//             matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+//             payload: 'medication_$medicationId',
+//           );
+//         }
+//       }
 //     }
+//
+//     print('Scheduled daily notification for $medicationName');
 //   }
 //
-//   // Helper function to find next occurrence of a weekday
-//   DateTime _findNextWeekday(DateTime from, int desiredWeekday, int hour, int minute) {
-//     var scheduledDate = DateTime(from.year, from.month, from.day, hour, minute);
+//   // Cancel specific medication notification
+//   Future<void> cancelMedicationNotification(int medicationId, bool isMorning) async {
+//     final int notificationId = medicationId * 10 + (isMorning ? 0 : 1);
+//     await _notifications.cancel(notificationId);
 //
-//     while (scheduledDate.weekday != desiredWeekday || scheduledDate.isBefore(from)) {
-//       scheduledDate = scheduledDate.add(const Duration(days: 1));
-//     }
-//
-//     return scheduledDate;
-//   }
-//
-//   // Cancel a specific notification
-//   Future<void> cancelNotification(int id) async {
-//     await _notificationsPlugin.cancel(id);
-//
-//     // Cancel all related notifications (for weekly schedules)
+//     // Cancel custom day notifications too
 //     for (int i = 0; i < 7; i++) {
-//       await _notificationsPlugin.cancel(id * 10 + i);
+//       await _notifications.cancel(notificationId + i * 100);
 //     }
+//   }
+//
+//   // Cancel all notifications for a medication
+//   Future<void> cancelAllMedicationNotifications(int medicationId) async {
+//     await cancelMedicationNotification(medicationId, true); // Morning
+//     await cancelMedicationNotification(medicationId, false); // Night
 //   }
 //
 //   // Cancel all notifications
 //   Future<void> cancelAllNotifications() async {
-//     await _notificationsPlugin.cancelAll();
+//     await _notifications.cancelAll();
 //   }
 //
-//   // Get pending notifications
+//   // Get pending notifications (for debugging)
 //   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
-//     return await _notificationsPlugin.pendingNotificationRequests();
-//   }
-//
-//   // Show immediate notification (for testing)
-//   Future<void> showImmediateNotification({
-//     required int id,
-//     required String title,
-//     required String body,
-//   }) async {
-//     const AndroidNotificationDetails androidDetails =
-//     AndroidNotificationDetails(
-//       'medication_channel',
-//       'Medication Reminders',
-//       channelDescription: 'Notifications for medication reminders',
-//       importance: Importance.high,
-//       priority: Priority.high,
-//       playSound: true,
-//       enableVibration: true,
-//     );
-//
-//     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-//       presentAlert: true,
-//       presentBadge: true,
-//       presentSound: true,
-//     );
-//
-//     const NotificationDetails notificationDetails = NotificationDetails(
-//       android: androidDetails,
-//       iOS: iosDetails,
-//     );
-//
-//     await _notificationsPlugin.show(
-//       id,
-//       title,
-//       body,
-//       notificationDetails,
-//       payload: 'medication_$id',
-//     );
+//     return await _notifications.pendingNotificationRequests();
 //   }
 // }

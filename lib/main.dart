@@ -20,6 +20,8 @@ final supabaseKey = Keys.supabaseKey;
 
 Future<void> main() async{
   WidgetsFlutterBinding.ensureInitialized();
+  // await NotificationService().initialize();
+  // await NotificationService().requestPermissions();
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseKey);
   runApp(const MyApp());
 }

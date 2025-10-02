@@ -77,7 +77,8 @@ class MedicationDBHelper {
     String? days,
     int reminderMinutes = 15,
     bool isTaken = false,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     return await db.insert(MEDICATIONS_TABLE, {
       COL_NAME: name,
@@ -110,7 +111,8 @@ class MedicationDBHelper {
     String? days,
     int reminderMinutes = 15,
     bool isTaken = false,
-  }) async {
+  }) async
+  {
     var db = await getDB();
     return await db.update(
       MEDICATIONS_TABLE,

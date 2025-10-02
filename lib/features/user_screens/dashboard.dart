@@ -529,7 +529,7 @@ class UserDashBoard extends StatelessWidget {
     return Consumer<MedicationProvider>(
       builder: (context, medProvider, child) {
         final now = DateTime.now();
-        // Make a mutable copy to sort
+        // Create a NEW sorted list each time
         final meds = List<Map<String, dynamic>>.from(medProvider.medications);
 
         // Sort by nearest upcoming time
@@ -606,8 +606,8 @@ class UserDashBoard extends StatelessWidget {
       Map<String, dynamic> medication,
       bool isLast,
       MedicationProvider medProvider,
-      int index) {
-
+      int index)
+  {
     final String medName = medication[MedicationDBHelper.COL_NAME] ?? 'Unknown Medication';
     final String dosage = medication[MedicationDBHelper.COL_DOSAGE] ?? '';
 
@@ -618,6 +618,8 @@ class UserDashBoard extends StatelessWidget {
     final String? nightTime = medication[MedicationDBHelper.COL_NIGHT_TIME];
 
     final int medId = medication[MedicationDBHelper.COL_ID];
+
+    // Read directly from the medication map (it's already updated by the provider)
     bool isTaken = medication[MedicationDBHelper.COL_IS_TAKEN] == 1;
 
     return GestureDetector(
@@ -634,18 +636,22 @@ class UserDashBoard extends StatelessWidget {
             Checkbox(
               value: isTaken,
               onChanged: (value) async {
+                // Toggle immediately - the provider will update the UI instantly
                 await medProvider.toggleMedicationStatus(medId, value ?? false);
-                // Optionally, show a snackbar
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      value == true
-                          ? "Marked '$medName' as taken"
-                          : "Marked '$medName' as not taken",
+
+                // Show feedback
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        value == true
+                            ? "Marked '$medName' as taken"
+                            : "Marked '$medName' as not taken",
+                      ),
+                      duration: const Duration(seconds: 1),
                     ),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
+                  );
+                }
               },
             ),
             const SizedBox(width: 8),
